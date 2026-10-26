@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Main Fish / Music Gradient (Apple Music Red to Magenta & Spatial Violet) -->
+    <linearGradient id="fishGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF334B" />
+      <stop offset="45%" stop-color="#FA233B" />
+      <stop offset="75%" stop-color="#D6156E" />
+      <stop offset="100%" stop-color="#AF52DE" />
+    </linearGradient>
+
+    <!-- Secondary Wave / Fin Gradient -->
+    <linearGradient id="finGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FA233B" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#5856D6" stop-opacity="0.7" />
+    </linearGradient>
+
+    <!-- Hi-Res Gold Accent Gradient -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCE38A" />
+      <stop offset="50%" stop-color="#F38181" />
+      <stop offset="100%" stop-color="#D4AF37" />
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Ambient Soundwave Echo Rings -->
+  <circle cx="236" cy="276" r="148" fill="none" stroke="#FA233B" stroke-opacity="0.12" stroke-width="3" stroke-dasharray="12 16" />
+  <circle cx="236" cy="276" r="182" fill="none" stroke="#AF52DE" stroke-opacity="0.08" stroke-width="2" stroke-dasharray="16 20" />
+
+  <!-- Dynamic Fish + Music Note Composite Shape -->
+  <g transform="translate(240 262) scale(1.14) translate(-240 -262)">
+    <!-- Primary Flowing Fish Body (Forms an elegant music note contour) -->
+    <path d="M 236 128 
+             C 292 128, 348 168, 356 228
+             C 362 278, 324 324, 276 348
+             C 232 370, 184 366, 156 344
+             C 126 320, 120 278, 144 242
+             C 166 210, 212 202, 248 214
+             C 278 224, 296 250, 288 274
+             C 280 298, 252 308, 230 300
+             C 214 294, 206 280, 212 268
+             C 218 256, 232 254, 240 260
+             C 246 264, 246 270, 242 274
+             C 234 274, 230 264, 238 258
+             C 264 244, 292 272, 272 304
+             C 246 346, 172 338, 150 286
+             C 134 248, 154 196, 196 166
+             C 220 148, 248 140, 276 142
+             C 328 146, 368 186, 372 238
+             C 376 298, 332 352, 272 376
+             C 224 394, 168 388, 128 354
+             C 108 338, 96 318, 92 302
+             C 86 280, 94 266, 106 264
+             C 118 262, 126 276, 130 294
+             C 142 344, 194 368, 244 360
+             C 288 352, 324 322, 336 280
+             C 350 230, 318 178, 268 162
+             C 236 152, 198 160, 170 182
+             C 148 198, 136 224, 134 248
+             C 130 220, 144 190, 170 168
+             C 202 142, 242 134, 276 138 Z"
+          fill="url(#fishGrad)" />
+
+    <!-- Sleek Back & Head Contour (Fish Head / Note Notehead Solid Core) -->
+    <path d="M 226 256
+             C 204 256, 186 274, 186 296
+             C 186 318, 204 336, 226 336
+             C 248 336, 266 318, 266 296
+             C 266 274, 248 256, 226 256 Z"
+          fill="url(#fishGrad)" />
+
+    <!-- Fish Eye (Modern glowing micro-accent) -->
+    <circle cx="218" cy="288" r="8" fill="#FFFFFF" />
+    <circle cx="216" cy="286" r="3.5" fill="#FA233B" />
+
+    <!-- Elegant Tail Flukes (Spreads into dual soundwaves) -->
+    <path d="M 276 142
+             C 308 112, 356 86, 404 82
+             C 418 80, 424 92, 412 102
+             C 382 126, 354 158, 344 192
+             C 362 170, 396 150, 432 142
+             C 446 138, 450 152, 438 164
+             C 406 196, 372 232, 356 268
+             C 362 250, 372 222, 386 200
+             C 368 220, 352 248, 342 278
+             C 346 238, 362 198, 384 168
+             C 362 184, 344 206, 332 232
+             C 328 198, 310 168, 284 148 Z"
+          fill="url(#finGrad)" />
+
+    <!-- Ventral / Pectoral Fin Wave -->
+    <path d="M 174 348
+             C 142 382, 102 410, 62 422
+             C 50 426, 44 414, 54 404
+             C 80 378, 114 354, 148 336
+             C 130 350, 104 366, 78 376
+             C 98 358, 122 342, 148 330 Z"
+          fill="url(#finGrad)" />
+
+    <!-- Hi-Res Golden Sonic Accent (Curved spine streak) -->
+    <path d="M 288 174
+             C 334 212, 342 268, 320 314
+             C 304 348, 268 374, 230 384
+             C 216 388, 214 380, 224 374
+             C 256 354, 284 326, 296 292
+             C 308 256, 298 214, 264 186
+             C 256 180, 264 170, 274 172
+             C 278 172, 284 174, 288 174 Z"
+          fill="url(#goldGrad)" />
+  </g>
+
+  <!-- Musical Sound Dots (Spatial Audio constellation dots) -->
+  <circle cx="384" cy="356" r="6" fill="#FA233B" opacity="0.8" />
+  <circle cx="414" cy="326" r="4.5" fill="#AF52DE" opacity="0.7" />
+  <circle cx="360" cy="392" r="4" fill="#D4AF37" opacity="0.9" />
+</svg>

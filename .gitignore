@@ -1,0 +1,28 @@
+# Build output
+build/
+out/
+dist/
+.gradle/
+.kotlin/
+
+# Local SDK jars - bring your own, see README (never commit)
+sdk/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Local-only settings, notes and probe lists
+local.settings.ps1
+HANDOFF.md
+tools/artwork-probe.txt
+
+# Release artifacts
+*.spmod
+*.zip

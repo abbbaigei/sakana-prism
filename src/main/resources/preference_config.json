@@ -1,0 +1,17 @@
+{
+  "configs": [
+    {
+      "title": "Sakana Prism",
+      "config": "config.json",
+      "preferences": [
+        {
+          "type": "button",
+          "title": "打开 Sakana Prism",
+          "summary": "在歌曲内容区显示实时频谱与立体声声场",
+          "arrow_type": "arrow",
+          "on_click": "dev.sakana.spw.prism.MainPlugin.openSpectrum"
+        }
+      ]
+    }
+  ]
+}
