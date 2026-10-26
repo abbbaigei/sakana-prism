@@ -52,6 +52,9 @@ Salt Player for Windows 的实时频谱与立体声声场可视化插件。
   [spw-workshop-api](https://github.com/Moriafly/spw-workshop-api) 项目或本地播放器里取，放到 `sdk/spw-api.jar`。
   （`sdk/` 整个目录都在 `.gitignore` 里，不要提交。）
 
+仓库自带 Gradle Wrapper，不用自己装 Gradle；第一次构建会自动下载 9.6.0。
+`build.ps1` / `package.ps1` 只是对 wrapper 的封装，也可以直接用 `.\gradlew.bat`。
+
 ```powershell
 # 构建 jar
 $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'   # 换成你的 JDK 25
@@ -97,10 +100,10 @@ assets/       Logo 母版与商店封面
 
 ```powershell
 # 封面解析自检：读一个路径列表，打印每个音频文件解析到的取色
-gradle probe -PprobeArgs="C:\path\to\list.txt"
+.\gradlew.bat probe -PprobeArgs="C:\path\to\list.txt"
 
 # 图标各尺寸离屏渲染（看清 20dp 下的实际效果），也接受任意 svg 路径
-gradle probe -PprobeMain=dev.sakana.spw.prism.tools.IconProbe -PprobeArgs="src/main/resources/icons/prism-entry.svg"
+.\gradlew.bat probe -PprobeMain=dev.sakana.spw.prism.tools.IconProbe -PprobeArgs="src/main/resources/icons/prism-entry.svg"
 ```
 
 ## 第三方与致谢
