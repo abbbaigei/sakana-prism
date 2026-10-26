@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "dev.sakana.spw"
-version = "0.4.6"
+version = "0.4.7"
 
 kotlin {
     jvmToolchain(25)
@@ -32,8 +32,10 @@ tasks.jar {
             "Plugin-Class" to "dev.sakana.spw.prism.MainPlugin",
             "Plugin-Version" to project.version,
             "Plugin-Provider" to "Sakana",
+            "Plugin-Name" to "Sakana Prism",
             "Plugin-Description" to "Sakana Prism - realtime spectrum and sound field",
             "Plugin-Has-Config" to "true",
+            "Plugin-Open-Source-Url" to "https://github.com/abbbaigei/sakana-prism",
             "Plugin-Permissions" to "library-read,class-transform,key-bindings"
         )
     }
