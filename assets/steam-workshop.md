@@ -63,6 +63,9 @@ Sakana 是鱼，Prism 是棱镜——把声音拆成频谱和声场，正好是�
 · Ogg / Opus 的内嵌封面暂未解析
 · 不是测量仪器，仅供视觉参考
 
+【源码】
+MIT 开源，欢迎提 issue / PR：https://github.com/abbbaigei/sakana-prism
+
 问题、建议、想加的画法，欢迎在评论里说。
 ```
 
