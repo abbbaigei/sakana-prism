@@ -341,7 +341,7 @@ private fun SpectrumPanel(
                             area = androidx.compose.ui.geometry.Rect(
                                 6.dp.toPx(),
                                 6.dp.toPx(),
-                                w - 46.dp.toPx(),
+                                w - 58.dp.toPx(),
                                 plotH - 2.dp.toPx(),
                             ),
                             textMeasurer = textMeasurer,

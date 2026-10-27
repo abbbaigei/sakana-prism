@@ -4,24 +4,26 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PointMode
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.dp
 import dev.sakana.spw.prism.audio.SpectrumLayout
 import dev.sakana.spw.prism.settings.SpectrogramView
+import org.jetbrains.skia.Paint
+import org.jetbrains.skia.PaintStrokeCap
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
-/** Frequency samples across the depth axis. */
-private const val FREQ_SAMPLES = 384
+/** Interpolated frequency columns across the depth axis (the analysis grid has 512). */
+private const val FREQ_SAMPLES = 1024
 
 /** Brightness buckets, so the whole cloud goes out in a handful of draw calls. */
 private const val LEVELS = 9
@@ -32,17 +34,16 @@ private const val RIDGE_HEIGHT = 0.26f
 /** The cloud starts a little behind the front edge so the floor stays visible. */
 private const val DEPTH_MARGIN = 0.12f
 
-/** Frames kept in the history buffer. */
+/** Frames kept in the history buffer (33 ms each). */
 const val SPECTROGRAM_ROWS = 91
 
 /**
  * Point-cloud spectrogram: time runs left to right, frequency recedes from the front edge
  * (low) to the back (log-scaled high), and amplitude lifts a sample off the floor.
  *
- * Everything is drawn as particles — one dot per (time, frequency) sample, bucketed by
- * brightness and depth so a handful of `drawPoints` calls cover the whole cloud.
- * Particles have no surfaces to intersect, which removes the clipping ("穿模") that the
- * old filled ribbons showed where a near ridge crossed a far one.
+ * Particles are handed to Skia as flat `FloatArray` buckets (one per brightness × depth
+ * band) instead of `List<Offset>`: with ~93k points a frame, boxing every coordinate would
+ * dominate the frame time.
  */
 internal fun DrawScope.drawSpectrogram(
     history: List<FloatArray>,
@@ -57,7 +58,7 @@ internal fun DrawScope.drawSpectrogram(
     val rows = history.size
     val bins = history.first().size
     if (bins == 0) return
-    val columns = min(FREQ_SAMPLES, bins)
+    val columns = FREQ_SAMPLES
 
     val yaw = Math.toRadians(view.yaw.toDouble()).toFloat()
     val pitch = Math.toRadians(view.pitch.toDouble()).toFloat()
@@ -100,6 +101,15 @@ internal fun DrawScope.drawSpectrogram(
     fun depthOf(column: Int): Float =
         DEPTH_MARGIN + (1f - DEPTH_MARGIN) * (if (columns > 1) column.toFloat() / (columns - 1) else 0f)
 
+    fun sampleAt(row: FloatArray, column: Int): Float {
+        if (columns <= 1) return row[0]
+        val exact = column.toFloat() * (bins - 1) / (columns - 1)
+        val low = exact.toInt().coerceIn(0, bins - 1)
+        val high = (low + 1).coerceAtMost(bins - 1)
+        val t = exact - low
+        return row[low] + (row[high] - row[low]) * t
+    }
+
     // Floor grid first, so the cloud floats above it.
     val gridPath = Path()
     for (step in 0..6) {
@@ -118,36 +128,50 @@ internal fun DrawScope.drawSpectrogram(
     }
     drawPath(gridPath, axisColor.copy(alpha = 0.30f), style = Stroke(1f))
 
-    // Bucket the cloud into brightness × depth bands before drawing anything.
-    val buckets = Array(LEVELS * 2) { ArrayList<Offset>(rows * columns / (LEVELS * 2) + 16) }
+    // Two passes: count each bucket, then fill exact-size coordinate arrays.
+    val counts = IntArray(LEVELS * 2)
+    for (index in 0 until rows) {
+        val row = history[index]
+        for (column in 0 until columns) {
+            val level = levelOf(sampleAt(row, column))
+            if (level <= 0f) continue
+            val band = if (depthOf(column) < 0.55f) 0 else 1
+            counts[(level * (LEVELS - 1)).toInt().coerceIn(0, LEVELS - 1) * 2 + band]++
+        }
+    }
+    val buffers = Array(LEVELS * 2) { FloatArray(counts[it] * 2) }
+    val cursor = IntArray(LEVELS * 2)
     for (index in 0 until rows) {
         val row = history[index]
         val x = timeX(index)
         for (column in 0 until columns) {
-            val bin = (column * (bins - 1) / max(columns - 1, 1)).coerceIn(0, bins - 1)
-            val level = levelOf(row.getOrElse(bin) { 0f })
+            val level = levelOf(sampleAt(row, column))
             if (level <= 0f) continue
             val z = depthOf(column)
-            buckets[(level * (LEVELS - 1)).toInt().coerceIn(0, LEVELS - 1) * 2 + (if (z < 0.55f) 0 else 1)]
-                .add(position(x, level * RIDGE_HEIGHT, z))
+            val band = if (z < 0.55f) 0 else 1
+            val bucket = (level * (LEVELS - 1)).toInt().coerceIn(0, LEVELS - 1) * 2 + band
+            val point = position(x, level * RIDGE_HEIGHT, z)
+            val at = cursor[bucket]
+            buffers[bucket][at] = point.x
+            buffers[bucket][at + 1] = point.y
+            cursor[bucket] = at + 2
         }
     }
 
-    val nearWidth = 3.2.dp.toPx()
-    val farWidth = 2.2.dp.toPx()
-    // Far band first so near particles sit on top, bright levels last so peaks read.
+    val nearWidth = 1.7.dp.toPx()
+    val farWidth = 1.15.dp.toPx()
+    val canvas = drawContext.canvas.nativeCanvas
+    val paint = Paint().apply {
+        isAntiAlias = true
+        strokeCap = PaintStrokeCap.ROUND
+    }
     for (band in 1 downTo 0) {
-        val width = if (band == 0) nearWidth else farWidth
+        paint.strokeWidth = if (band == 0) nearWidth else farWidth
         for (level in 0 until LEVELS) {
-            val points = buckets[level * 2 + band]
+            val points = buffers[level * 2 + band]
             if (points.isEmpty()) continue
-            drawPoints(
-                points = points,
-                pointMode = PointMode.Points,
-                color = greyAt(level.toFloat() / (LEVELS - 1)),
-                strokeWidth = width,
-                cap = StrokeCap.Round,
-            )
+            paint.color = greyAt(level.toFloat() / (LEVELS - 1)).toArgb()
+            canvas.drawPoints(points, paint)
         }
     }
 
@@ -176,10 +200,11 @@ internal fun DrawScope.drawSpectrogram(
             style = labelStyle,
         )
     }
+    // "Hz" sits clear of the tick labels instead of colliding with the 10 Hz one.
     drawText(
         textMeasurer = textMeasurer,
         text = "Hz",
-        topLeft = Offset(frontRight.x + 6.dp.toPx(), frontRight.y - 20.dp.toPx()),
+        topLeft = Offset(frontRight.x + 34.dp.toPx(), frontRight.y - 4.dp.toPx()),
         style = labelStyle,
     )
     val centre = position(0f, 0f, DEPTH_MARGIN)
