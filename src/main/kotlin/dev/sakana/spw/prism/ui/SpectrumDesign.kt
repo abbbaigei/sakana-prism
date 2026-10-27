@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.sakana.spw.prism.audio.AnalysisScope
+import dev.sakana.spw.prism.diagnostics.BuildInfo
+import dev.sakana.spw.prism.diagnostics.DiagnosticsLog
 import dev.sakana.spw.prism.audio.SpectrumLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -118,6 +120,7 @@ fun SpectrumDesign(controller: SpectrumController) {
         var viewMode by remember { mutableStateOf(ViewMode.SPECTRUM) }
         var showSettings by remember { mutableStateOf(true) }
         var fieldExpanded by remember { mutableStateOf(false) }
+        var lastLog by remember { mutableStateOf<String?>(null) }
         // Keep the invisible view from paying for analysis it will never draw.
         LaunchedEffect(viewMode, fieldExpanded) {
             AnalysisScope.fieldVisible = viewMode == ViewMode.FIELD || fieldExpanded
@@ -184,9 +187,17 @@ fun SpectrumDesign(controller: SpectrumController) {
                     }
                 }
                 if (showSettings) {
-                    SettingsRail(controller, graphMode, theme, showGraphModes = viewMode == ViewMode.SPECTRUM) {
-                        SpectrumSettings.chooseGraphMode(it)
-                    }
+                    SettingsRail(
+                        controller = controller,
+                        mode = graphMode,
+                        theme = theme,
+                        showGraphModes = viewMode == ViewMode.SPECTRUM,
+                        onMode = { SpectrumSettings.chooseGraphMode(it) },
+                        onGenerateLog = {
+                            lastLog = DiagnosticsLog.write(controller, renderMetrics)?.toString()
+                        },
+                        lastLogPath = lastLog,
+                    )
                 }
             }
         }
@@ -456,6 +467,14 @@ private fun Footer(controller: SpectrumController, theme: ThemePreset, metrics: 
         )
         Spacer(Modifier.width(10.dp))
         Text("${controller.sampleRate / 1000.0} kHz  ·  16384 窗口", fontSize = 9.sp, color = Muted)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            "v${BuildInfo.version}",
+            fontSize = 11.sp,
+            letterSpacing = 0.6.sp,
+            color = theme.accent.copy(alpha = 0.85f),
+            fontFamily = FontFamily.Monospace,
+        )
     }
 }
 
@@ -466,6 +485,8 @@ private fun SettingsRail(
     theme: ThemePreset,
     showGraphModes: Boolean,
     onMode: (GraphMode) -> Unit,
+    onGenerateLog: () -> Unit,
+    lastLogPath: String?,
 ) {
     Column(
         Modifier.width(286.dp).fillMaxHeight().background(Panel)
@@ -619,6 +640,19 @@ private fun SettingsRail(
                 SpectrumSettings.lowFpsOnUnfocus, theme.accent,
             ) {
                 SpectrumSettings.updateLowFpsOnUnfocus(!SpectrumSettings.lowFpsOnUnfocus)
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Chip("生成日志", false, theme.accent) { onGenerateLog() }
+            }
+            if (lastLogPath != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "已生成：$lastLogPath",
+                    fontSize = 7.sp,
+                    color = Muted,
+                    lineHeight = 9.sp,
+                )
             }
         }
         Chip("恢复默认", false, theme.accent) {
