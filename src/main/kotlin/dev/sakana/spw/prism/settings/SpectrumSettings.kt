@@ -68,6 +68,9 @@ object SpectrumSettings {
         private set
     var lowFpsOnUnfocus by mutableStateOf(true)
         private set
+    /** Scale the polar cloud by a sliding peak so quiet masters still reach the outer ring. */
+    var polarAdaptivePeak by mutableStateOf(false)
+        private set
     var peakHoldMs by mutableIntStateOf(1000)
         private set
     var peakDecayDbPerSec by mutableIntStateOf(21)
@@ -103,6 +106,7 @@ object SpectrumSettings {
             SpectrogramGlow.valueOf(config.get("spectrogramGlow", SpectrogramGlow.MEDIUM.name) ?: SpectrogramGlow.MEDIUM.name)
         }.getOrDefault(SpectrogramGlow.MEDIUM)
         lowFpsOnUnfocus = config.get("lowFpsOnUnfocus", true) ?: true
+        polarAdaptivePeak = config.get("polarAdaptivePeak", false) ?: false
         peakHoldMs = (config.get("peakHoldMs", 1000) ?: 1000).coerceIn(200, 4000)
         peakDecayDbPerSec = (config.get("peakDecayDbPerSec", 21) ?: 21).coerceIn(6, 60)
         runCatching {
@@ -201,6 +205,11 @@ object SpectrumSettings {
         persist("lowFftLarge", value)
     }
 
+    fun updateAdaptivePolarPeak(value: Boolean) {
+        polarAdaptivePeak = value
+        persist("polarAdaptivePeak", value)
+    }
+
     fun choosePeakHold(value: Int) {
         peakHoldMs = value.coerceIn(200, 4000)
         persist("peakHoldMs", peakHoldMs)
@@ -234,6 +243,7 @@ object SpectrumSettings {
         autoPlay = false
         lowFftLarge = true
         mainFft8192 = false
+        polarAdaptivePeak = false
         peakHoldMs = 1000
         peakDecayDbPerSec = 21
         helper?.let {
@@ -254,6 +264,7 @@ object SpectrumSettings {
             it.set("autoPlay", autoPlay)
             it.set("lowFftLarge", lowFftLarge)
             it.set("mainFft8192", mainFft8192)
+            it.set("polarAdaptivePeak", polarAdaptivePeak)
             it.set("spectrogramGlow", spectrogramGlow.name)
             it.set("lowFpsOnUnfocus", lowFpsOnUnfocus)
             it.set("peakHoldMs", peakHoldMs)

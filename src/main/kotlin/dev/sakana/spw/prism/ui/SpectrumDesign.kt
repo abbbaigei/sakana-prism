@@ -631,6 +631,13 @@ private fun SettingsRail(
                     SpectrumSettings.updateAnimations(!SpectrumSettings.animations)
                 }
             }
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Chip("峰值自适应 ${if (SpectrumSettings.polarAdaptivePeak) "ON" else "OFF"}",
+                    SpectrumSettings.polarAdaptivePeak, theme.accent) {
+                    SpectrumSettings.updateAdaptivePolarPeak(!SpectrumSettings.polarAdaptivePeak)
+                }
+            }
         }
         Column {
             Text("性能", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)

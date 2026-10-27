@@ -42,6 +42,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.sakana.spw.prism.preview.SpectrumController
+import dev.sakana.spw.prism.settings.SpectrumSettings
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -103,6 +104,8 @@ fun SoundFieldPanel(
     var renderTick by remember { mutableIntStateOf(0) }
     val history = remember { PolarHistory() }
     val polarLevelState = remember { FloatArray(96) }
+    val adaptivePeak = remember { AdaptivePeak() }
+    val adaptive = SpectrumSettings.polarAdaptivePeak
     val latestField = controller.field
     val panel = Color(0xFF0D121A)
     val line = Color(0xFF1D2A38)
@@ -231,6 +234,9 @@ fun SoundFieldPanel(
                 val polarGrid = mode != SoundFieldMode.LISSAJOUS && mode != SoundFieldMode.LEVELS
                 if (polarGrid) {
                     drawLine(line.copy(alpha = .42f), Offset(cx - radius, bottom), Offset(cx + radius, bottom), 0.8.dp.toPx())
+                    // Origin marker: the radius now starts at zero, so the centre gets its
+                    // own dot instead of being padded by a radius offset.
+                    drawCircle(line.copy(alpha = .85f), 1.7.dp.toPx(), Offset(cx, bottom))
                     for (ring in 1..4) {
                         val r = radius * ring / 4f
                         drawArc(
@@ -239,11 +245,19 @@ fun SoundFieldPanel(
                             topLeft = Offset(cx - r, bottom - r), size = Size(r * 2f, r * 2f),
                             style = Stroke(if (ring == 4) 1.15.dp.toPx() else 0.75.dp.toPx()),
                         )
-                        // Radius FS values belong to Polar Sample only.
-                        if (mode == SoundFieldMode.POLAR_SAMPLE) {
+                        // Ring labels: absolute FS by default, relative to the sliding peak
+                        // when 峰值自适应 is on, so the numbers cannot mislead. Polar Level
+                        // uses the same exact linear radius now, so the FS rings apply there
+                        // as well.
+                        if (mode == SoundFieldMode.POLAR_SAMPLE || mode == SoundFieldMode.POLAR_LEVEL) {
                             val sideX = r * 0.866f
                             val sideY = r * 0.5f
-                            val sideLabel = "%.2f".format(ring * 0.25f)
+                            val sideLabel =
+                                if (adaptive && mode == SoundFieldMode.POLAR_SAMPLE) {
+                                    "${ring * 25}%"
+                                } else {
+                                    "%.2f".format(ring * 0.25f)
+                                }
                             val sideStyle = TextStyle(
                                 fontSize = 8.sp,
                                 color = muted.copy(alpha = .78f),
@@ -254,6 +268,18 @@ fun SoundFieldPanel(
                             drawText(textMeasurer, sideLabel,
                                 Offset(cx + sideX + 4.dp.toPx(), bottom - sideY - 6.dp.toPx()), sideStyle)
                         }
+                    }
+                    if (adaptive && mode == SoundFieldMode.POLAR_SAMPLE) {
+                        drawText(
+                            textMeasurer,
+                            "半径 自适应",
+                            Offset(cx + radius * 0.06f, bottom - radius * 1.02f),
+                            TextStyle(
+                                fontSize = 8.sp,
+                                color = muted.copy(alpha = .85f),
+                                fontFamily = FontFamily.Monospace,
+                            ),
+                        )
                     }
                     val labelStyle = TextStyle(fontSize = 11.sp, color = muted, fontFamily = FontFamily.Monospace)
                     for (deg in listOf(-90, -60, -30, 0, 30, 60, 90)) {
@@ -326,9 +352,16 @@ fun SoundFieldPanel(
                 }
 
                 val field = controller.field
+                // 峰值自适应: radius divisor from a sliding peak. Off by default, so the
+                // absolute FS mapping stays the default behaviour.
+                val radiusDivisor = if (adaptive) {
+                    adaptivePeak.update(max(controller.leftPeak, controller.rightPeak), System.nanoTime())
+                } else {
+                    1f
+                }
                 when (mode) {
                     SoundFieldMode.REFERENCE -> {
-                        drawReferenceCloud(field, cx, bottom, radius, controller.fieldOpacity)
+                        drawReferenceCloud(field, cx, bottom, radius, controller.fieldOpacity, radiusDivisor)
                     }
                     SoundFieldMode.POLAR_SAMPLE -> {
                         if (version >= 0 && tick >= 0) {
@@ -340,6 +373,7 @@ fun SoundFieldPanel(
                                     snapshot, cx, bottom, radius, density,
                                     controller.fieldOpacity * fade, leftColor, rightColor,
                                     recordStats = age == 0,
+                                    divisor = radiusDivisor,
                                 )
                             }
                         }
@@ -387,7 +421,10 @@ fun SoundFieldPanel(
                 val scaleBottom = bottom
                 drawLine(line.copy(alpha = .55f), Offset(scaleX, scaleTop), Offset(scaleX, scaleBottom), 0.8.dp.toPx())
                 val scaleStyle = TextStyle(fontSize = 11.sp, color = muted, fontFamily = FontFamily.Monospace)
-                val scaleLabels = if (dbScale) listOf("0", "-24", "-48", "-96") else listOf("+1", "0", "-1")
+                // Levels maps 0..101 dB linearly (dbNorm), so evenly spaced ticks are
+                // 0 / -24 / -48 / -72 / -96. The old four-label list put -24 at 1/3 of the
+                // height, i.e. at -32 dB, which never matched the bars.
+                val scaleLabels = if (dbScale) listOf("0", "-24", "-48", "-72", "-96") else listOf("+1", "0", "-1")
                 scaleLabels.forEachIndexed { index, label ->
                     val y = scaleTop + (scaleBottom - scaleTop) * index / (scaleLabels.size - 1).coerceAtLeast(1)
                     drawLine(line.copy(alpha = .7f), Offset(scaleX - 3.dp.toPx(), y), Offset(scaleX + 1.dp.toPx(), y), 0.8.dp.toPx())
@@ -480,7 +517,8 @@ fun SoundFieldPanel(
         val leftValue = if (fsUnit) "%.2f".format(controller.leftPeak) else "%.1f".format(db(controller.leftRms))
         val rightValue = if (fsUnit) "%.2f".format(controller.rightPeak) else "%.1f".format(db(controller.rightRms))
         val hint = when (mode) {
-            SoundFieldMode.POLAR_SAMPLE -> "角度° · 半径 FS"
+            SoundFieldMode.POLAR_SAMPLE ->
+                if (adaptive) "角度° · 半径 相对峰值" else "角度° · 半径 FS"
             SoundFieldMode.POLAR_LEVEL -> "RMS dBFS"
             SoundFieldMode.LISSAJOUS -> "X=L / Y=R · FS"
             SoundFieldMode.LEVELS -> "峰值 / 保持 / RMS"
@@ -499,6 +537,42 @@ fun SoundFieldPanel(
     }
 }
 
+/**
+ * Angular half-span of the polar plot: pan (-1..1) maps onto -90°..+90° so a hard-panned
+ * sample sits exactly on the ±90° tick. Every pan→angle conversion in this file uses it.
+ */
+private const val POLAR_ANGLE_HALF_SPAN = 0.5
+
+/** Pan (-1..1) → polar angle in radians, measured from the +X axis. */
+private fun polarAngle(pan: Float): Float =
+    (PI / 2.0 - pan * PI * POLAR_ANGLE_HALF_SPAN).toFloat()
+
+/** Lowest divisor 峰值自适应 will use, so silence does not amplify noise to full scale. */
+private const val ADAPTIVE_PEAK_FLOOR = 0.25f
+
+/** Full-scale to floor in roughly 4 seconds. */
+private const val ADAPTIVE_PEAK_RELEASE_PER_SEC = 0.2f
+
+/**
+ * Sliding peak for 峰值自适应: attacks instantly, releases over a few seconds, never falls
+ * below [ADAPTIVE_PEAK_FLOOR]. Used purely as a radius divisor; the sample data itself is
+ * untouched.
+ */
+private class AdaptivePeak {
+    private var value = 0f
+    private var updatedAt = 0L
+
+    fun update(peak: Float, nowNs: Long): Float {
+        val target = peak.coerceIn(0f, 1f)
+        val delta = if (updatedAt == 0L) 0f else ((nowNs - updatedAt) / 1_000_000_000f).coerceIn(0f, 2f)
+        updatedAt = nowNs
+        value = if (target >= value) target
+        else (value - delta * ADAPTIVE_PEAK_RELEASE_PER_SEC).coerceAtLeast(ADAPTIVE_PEAK_FLOOR)
+        if (value < ADAPTIVE_PEAK_FLOOR) value = ADAPTIVE_PEAK_FLOOR
+        return value
+    }
+}
+
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarCloud(
     field: FloatArray,
     cx: Float,
@@ -509,6 +583,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarCloud(
     leftColor: Color,
     rightColor: Color,
     recordStats: Boolean = false,
+    /** Radius divisor: 1 means absolute FS, otherwise the sliding 峰值自适应 peak. */
+    divisor: Float = 1f,
 ) {
     if (opacity <= 0.01f) return
     val pairs = min(768, field.size / 2)
@@ -516,6 +592,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarCloud(
     if (recordStats) SoundFieldDebugStats.record(field, radius, opacity, density)
     if (pairs <= 1) return
     val count = density.coerceIn(1, 768)
+    val scale = divisor.coerceAtLeast(1e-4f)
     for (i in 0 until count) {
         val pair = if (count == 1) 0 else
             (i.toDouble() * (pairs - 1) / (count - 1).toDouble()).roundToInt().coerceIn(0, pairs - 1)
@@ -523,13 +600,15 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarCloud(
         val r = field[pair * 2 + 1].coerceIn(-1f, 1f)
         val mid = (l + r) * 0.5f
         val side = (l - r) * 0.5f
-        val energy = min(1f, abs(mid) + abs(side))
+        val rawEnergy = abs(mid) + abs(side)
+        val energy = min(1f, rawEnergy / scale)
         // Normalize stereo position by level. Using side directly makes the
         // angular span shrink with radius and creates a fixed funnel near the
         // centre (|side| <= energy). Radius and angle must be independent.
-        val pan = if (energy > 1e-6f) (side / energy).coerceIn(-1f, 1f) else 0f
-        val angle = (PI / 2.0 - pan * PI * 0.48).toFloat()
-        val distance = radius * (0.025f + 0.975f * energy)
+        val pan = if (rawEnergy > 1e-6f) (side / rawEnergy).coerceIn(-1f, 1f) else 0f
+        val angle = polarAngle(pan)
+        // Linear amplitude: 1.0 (= 0 dBFS) lands exactly on the outer ring.
+        val distance = radius * energy
         val aL = ((0.018f + abs(l) * 0.58f) * opacity).coerceIn(0f, 0.82f)
         val aR = ((0.018f + abs(r) * 0.58f) * opacity).coerceIn(0f, 0.82f)
         if (aL > 0.008f) {
@@ -594,8 +673,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarLevel(
     fill.moveTo(cx, bottom)
     for (b in 0 until binCount) {
         val pan = b / (binCount - 1f) * 2f - 1f
-        val angle = (PI / 2.0 - pan * PI * 0.48).toFloat()
-        val distance = radius * (0.15f + 0.85f * smooth[b])
+        val angle = polarAngle(pan)
+        // Exact linear FS radius: level 0.25 sits on the 0.25 ring, not 0.36.
+        val distance = radius * smooth[b].coerceIn(0f, 1f)
         fill.lineTo(cx + cos(angle) * distance, bottom - sin(angle) * distance)
     }
     fill.close()
@@ -610,8 +690,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarLevel(
     val line = Path()
     for (b in 0 until binCount) {
         val pan = b / (binCount - 1f) * 2f - 1f
-        val angle = (PI / 2.0 - pan * PI * 0.48).toFloat()
-        val distance = radius * (0.15f + 0.85f * state[b])
+        val angle = polarAngle(pan)
+        val distance = radius * state[b].coerceIn(0f, 1f)
         val x = cx + cos(angle) * distance
         val y = bottom - sin(angle) * distance
         if (b == 0) line.moveTo(x, y) else line.lineTo(x, y)
@@ -625,20 +705,24 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawReferenceCloud(
     bottom: Float,
     radius: Float,
     opacity: Float,
+    /** Radius divisor: 1 means absolute FS, otherwise the sliding 峰值自适应 peak. */
+    divisor: Float = 1f,
 ) {
     if (opacity <= 0.01f) return
     val pairs = min(768, field.size / 2)
     val particleScale = soundFieldParticleScale(radius)
+    val scale = divisor.coerceAtLeast(1e-4f)
     for (pair in 0 until pairs) {
         val l = field[pair * 2].coerceIn(-1f, 1f)
         val r = field[pair * 2 + 1].coerceIn(-1f, 1f)
         val mid = (l + r) * 0.5f
         val side = (l - r) * 0.5f
-        val energy = min(1f, abs(mid) + abs(side))
+        val rawEnergy = abs(mid) + abs(side)
+        val energy = min(1f, rawEnergy / scale)
         if (energy < 0.002f) continue
-        val pan = if (energy > 1e-6f) (side / energy).coerceIn(-1f, 1f) else 0f
-        val angle = (PI / 2.0 - pan * PI * 0.48).toFloat()
-        val distance = radius * (0.025f + 0.975f * energy)
+        val pan = if (rawEnergy > 1e-6f) (side / rawEnergy).coerceIn(-1f, 1f) else 0f
+        val angle = polarAngle(pan)
+        val distance = radius * energy
         val alpha = ((0.018f + energy * 0.74f) * opacity).coerceIn(0f, 0.9f)
         val x = cx + cos(angle) * distance
         val y = bottom - sin(angle) * distance
