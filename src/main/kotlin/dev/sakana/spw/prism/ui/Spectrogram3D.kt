@@ -135,10 +135,12 @@ internal fun DrawScope.drawSpectrogram(
         return levelOf(row[bin])
     }
 
-    // Heightfield vertices: one per (time, frequency) sample.
+    // Heightfield vertices: one per (time, frequency) sample. Buffers and the index list
+    // are reused between frames — rebuilding 68,580 triangle indices every frame was pure
+    // garbage, and the layout only changes with the grid size.
     val vertexCount = rows * columns
-    val positions = FloatArray(vertexCount * 2)
-    val colors = IntArray(vertexCount)
+    val positions = SpectrogramCache.positions(vertexCount)
+    val colors = SpectrogramCache.colors(vertexCount)
     for (i in 0 until rows) {
         val row = history[i]
         val x = timeX(i)
@@ -151,27 +153,12 @@ internal fun DrawScope.drawSpectrogram(
             positions[index * 2 + 1] = point.y
             // Far rows sit back in haze; the ridge tops get the brightest values.
             val haze = 1f - 0.25f * z
-            colors[index] = greyArgb((level * 0.75f + 0.25f) * haze)
+            colors[index] = greyAt((level * 0.75f + 0.25f) * haze)
         }
     }
 
     // Triangles, emitted from the back row forwards so nearer cells win.
-    val indices = ShortArray((rows - 1) * (columns - 1) * 6)
-    var cursor = 0
-    for (column in columns - 1 downTo 1) {
-        for (i in 0 until rows - 1) {
-            val a = (i * columns + column).toShort()
-            val b = ((i + 1) * columns + column).toShort()
-            val c = ((i + 1) * columns + column - 1).toShort()
-            val d = (i * columns + column - 1).toShort()
-            indices[cursor++] = a
-            indices[cursor++] = b
-            indices[cursor++] = c
-            indices[cursor++] = a
-            indices[cursor++] = c
-            indices[cursor++] = d
-        }
-    }
+    val indices = SpectrogramCache.indices(rows, columns)
 
     val canvas = drawContext.canvas.nativeCanvas
     val paint = Paint().apply { isAntiAlias = true }
@@ -185,16 +172,18 @@ internal fun DrawScope.drawSpectrogram(
         paint,
     )
 
-    // Ridges: one polyline per frequency band. Drawn in three passes — two wide and faint
-    // for the halo, one crisp on top — which fakes the bloom the reference has without
-    // paying for an offscreen blur.
+    // Ridges: one polyline per frequency band. This is the most expensive part of the
+    // frame (a path segment per vertex, stroked three times), so every other band is
+    // enough to keep the striated look at roughly half the cost.
     val ridgePath = Path()
-    for (column in columns - 1 downTo 1) {
+    var ridgeColumn = columns - 1
+    while (ridgeColumn >= 1) {
         for (i in 0 until rows) {
-            val level = levelAt(history[i], column)
-            val point = position(timeX(i), level * RIDGE_HEIGHT, depthOf(column))
+            val level = levelAt(history[i], ridgeColumn)
+            val point = position(timeX(i), level * RIDGE_HEIGHT, depthOf(ridgeColumn))
             if (i == 0) ridgePath.moveTo(point.x, point.y) else ridgePath.lineTo(point.x, point.y)
         }
+        ridgeColumn -= 2
     }
     val glowSteps = floatArrayOf(6.5f, 3.2f)
     val glowAlphas = floatArrayOf(0.05f, 0.10f)
@@ -264,20 +253,52 @@ internal fun DrawScope.drawSpectrogram(
 /** Stretch the useful part of the dBFS scale, like the flat graph modes do. */
 private fun levelOf(value: Float): Float = ((value - 0.30f) / 0.62f).coerceIn(0f, 1f)
 
-/** Monochrome ramp with the mid-tones lifted, matching the reference sheet. */
-internal fun greyArgb(level: Float): Int {
-    val t = level.coerceIn(0f, 1f).pow(0.72f) * (GREY_STOPS.size - 1)
-    val index = t.toInt().coerceIn(0, GREY_STOPS.size - 2)
-    val frac = t - index
-    val from = GREY_STOPS[index]
-    val to = GREY_STOPS[index + 1]
-    val r = lerpChannel((from shr 16) and 0xFF, (to shr 16) and 0xFF, frac)
-    val g = lerpChannel((from shr 8) and 0xFF, (to shr 8) and 0xFF, frac)
-    val b = lerpChannel(from and 0xFF, to and 0xFF, frac)
-    return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
-}
+/**
+ * Reusable per-frame buffers. The renderer runs on the UI thread only, and the grid size
+ * stays constant between resizes, so these arrays (and the 68k-entry index list) are built
+ * once instead of every frame.
+ */
+private object SpectrogramCache {
+    private var cachedRows = -1
+    private var cachedColumns = -1
+    private var positions = FloatArray(0)
+    private var colors = IntArray(0)
+    private var indices = ShortArray(0)
 
-private fun lerpChannel(from: Int, to: Int, t: Float): Int = (from + (to - from) * t).toInt().coerceIn(0, 255)
+    fun positions(vertexCount: Int): FloatArray {
+        if (positions.size != vertexCount * 2) positions = FloatArray(vertexCount * 2)
+        return positions
+    }
+
+    fun colors(vertexCount: Int): IntArray {
+        if (colors.size != vertexCount) colors = IntArray(vertexCount)
+        return colors
+    }
+
+    fun indices(rows: Int, columns: Int): ShortArray {
+        if (cachedRows == rows && cachedColumns == columns) return indices
+        cachedRows = rows
+        cachedColumns = columns
+        val out = ShortArray((rows - 1) * (columns - 1) * 6)
+        var cursor = 0
+        for (column in columns - 1 downTo 1) {
+            for (i in 0 until rows - 1) {
+                val a = (i * columns + column).toShort()
+                val b = ((i + 1) * columns + column).toShort()
+                val c = ((i + 1) * columns + column - 1).toShort()
+                val d = (i * columns + column - 1).toShort()
+                out[cursor++] = a
+                out[cursor++] = b
+                out[cursor++] = c
+                out[cursor++] = a
+                out[cursor++] = c
+                out[cursor++] = d
+            }
+        }
+        indices = out
+        return out
+    }
+}
 
 private val GREY_STOPS = intArrayOf(
     0x1A222B,
@@ -288,3 +309,20 @@ private val GREY_STOPS = intArrayOf(
     0xD8E1EA,
     0xF4F8FC,
 )
+
+/** Monochrome ramp with the mid-tones lifted, baked into a lookup table. */
+private fun greyAt(level: Float): Int = GREY_LUT[(level.coerceIn(0f, 1f) * 255f).toInt()]
+
+private val GREY_LUT = IntArray(256) { step ->
+    val t = (step / 255f).pow(0.72f) * (GREY_STOPS.size - 1)
+    val index = t.toInt().coerceIn(0, GREY_STOPS.size - 2)
+    val frac = t - index
+    val from = GREY_STOPS[index]
+    val to = GREY_STOPS[index + 1]
+    val r = lerpChannel((from shr 16) and 0xFF, (to shr 16) and 0xFF, frac)
+    val g = lerpChannel((from shr 8) and 0xFF, (to shr 8) and 0xFF, frac)
+    val b = lerpChannel(from and 0xFF, to and 0xFF, frac)
+    (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+}
+
+private fun lerpChannel(from: Int, to: Int, t: Float): Int = (from + (to - from) * t).toInt().coerceIn(0, 255)
