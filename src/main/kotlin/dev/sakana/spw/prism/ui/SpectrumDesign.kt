@@ -260,11 +260,18 @@ private fun SpectrumPanel(
     val linePath = remember { Path() }
     val fillPath = remember { Path() }
     val peakPath = remember { Path() }
+    val lastPeakAt = remember { longArrayOf(0L) }
     val peaks = remember(barCount) { FloatArray(barCount) }
-    // Peak tracking only exists for the two modes that draw peak markers.
+    // Peak tracking only exists for the two modes that draw peak markers, and it falls on
+    // wall-clock time so the release speed does not change with the refresh rate.
     if (mode == GraphMode.BARS || mode == GraphMode.LINE) {
+        val nowNs = System.nanoTime()
+        val lastNs = lastPeakAt[0]
+        lastPeakAt[0] = nowNs
+        val dt = if (lastNs == 0L) 0f else ((nowNs - lastNs) / 1_000_000_000f).coerceIn(0f, 0.25f)
+        val fall = 0.42f * dt
         for (i in peaks.indices) {
-            peaks[i] = if (animations) max(bars.getOrElse(i) { 0f }, peaks[i] - 0.006f)
+            peaks[i] = if (animations) max(bars.getOrElse(i) { 0f }, peaks[i] - fall)
             else bars.getOrElse(i) { 0f }
         }
     }
@@ -397,7 +404,7 @@ private fun SpectrumPanel(
                         val y = yAt(peaks[i])
                         if (i == 0) peakPath.moveTo(x, y) else peakPath.lineTo(x, y)
                     }
-                    drawPath(peakPath, Color.White.copy(alpha = .22f), style = Stroke(1f))
+                    drawPath(peakPath, Color.White.copy(alpha = .34f), style = Stroke(1.4.dp.toPx()))
                 }
                 metrics.recordDraw(System.nanoTime() - drawStarted)
             }
