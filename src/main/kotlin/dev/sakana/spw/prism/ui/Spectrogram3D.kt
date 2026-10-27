@@ -2,9 +2,10 @@ package dev.sakana.spw.prism.ui
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PointMode
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
@@ -19,28 +20,29 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
-/** Frequency curtains drawn across the depth axis. */
-private const val CURTAINS = 112
+/** Frequency samples across the depth axis. */
+private const val FREQ_SAMPLES = 128
 
-/** Horizontal colour samples per curtain, so time still shows through. */
-private const val SHADE_STEPS = 20
+/** Brightness buckets, so the whole cloud goes out in a handful of draw calls. */
+private const val LEVELS = 9
 
-/** How tall the amplitude ridges are, in slab space. */
-private const val RIDGE_HEIGHT = 0.19f
+/** How tall the amplitude peaks are, in slab space. */
+private const val RIDGE_HEIGHT = 0.26f
 
-/** The surface starts a little behind the front edge so the floor stays visible. */
+/** The cloud starts a little behind the front edge so the floor stays visible. */
 private const val DEPTH_MARGIN = 0.12f
 
 /** Frames kept in the history buffer. */
 const val SPECTROGRAM_ROWS = 64
 
 /**
- * Classic 3D spectrogram: time runs left to right, frequency recedes from the front edge
- * (low) to the back (log-scaled high), amplitude is drawn as height.
+ * Point-cloud spectrogram: time runs left to right, frequency recedes from the front edge
+ * (low) to the back (log-scaled high), and amplitude lifts a sample off the floor.
  *
- * The surface is a stack of "curtains" — one filled ribbon per frequency bin, painted far
- * to near. Opaque fills hide what is behind them, so only the ridges poke out, which is
- * what makes it read as a surface without a full hidden-surface pass.
+ * Everything is drawn as particles — one dot per (time, frequency) sample, bucketed by
+ * brightness and depth so a handful of `drawPoints` calls cover the whole cloud.
+ * Particles have no surfaces to intersect, which removes the clipping ("穿模") that the
+ * old filled ribbons showed where a near ridge crossed a far one.
  */
 internal fun DrawScope.drawSpectrogram(
     history: List<FloatArray>,
@@ -55,7 +57,7 @@ internal fun DrawScope.drawSpectrogram(
     val rows = history.size
     val bins = history.first().size
     if (bins == 0) return
-    val columns = min(CURTAINS, bins)
+    val columns = min(FREQ_SAMPLES, bins)
 
     val yaw = Math.toRadians(view.yaw.toDouble()).toFloat()
     val pitch = Math.toRadians(view.pitch.toDouble()).toFloat()
@@ -96,9 +98,9 @@ internal fun DrawScope.drawSpectrogram(
 
     fun timeX(index: Int): Float = if (rows > 1) 1f - 2f * index / (rows - 1) else 0f
     fun depthOf(column: Int): Float =
-        (DEPTH_MARGIN + (1f - DEPTH_MARGIN) * (if (columns > 1) column.toFloat() / (columns - 1) else 0f))
+        DEPTH_MARGIN + (1f - DEPTH_MARGIN) * (if (columns > 1) column.toFloat() / (columns - 1) else 0f)
 
-    // Floor grid first: the surface sits behind the front margin, so these stay visible.
+    // Floor grid first, so the cloud floats above it.
     val gridPath = Path()
     for (step in 0..6) {
         val z = DEPTH_MARGIN + (1f - DEPTH_MARGIN) * step / 6f
@@ -107,59 +109,46 @@ internal fun DrawScope.drawSpectrogram(
         gridPath.moveTo(a.x, a.y)
         gridPath.lineTo(b.x, b.y)
     }
-    val timeTicks = 12
-    for (step in 0..timeTicks) {
-        val x = -1f + 2f * step / timeTicks
+    for (step in 0..12) {
+        val x = -1f + 2f * step / 12f
         val a = position(x, 0f, DEPTH_MARGIN)
         val b = position(x, 0f, 1f)
         gridPath.moveTo(a.x, a.y)
         gridPath.lineTo(b.x, b.y)
     }
-    drawPath(gridPath, axisColor.copy(alpha = 0.35f), style = Stroke(1f))
+    drawPath(gridPath, axisColor.copy(alpha = 0.30f), style = Stroke(1f))
 
-    fun levelOf(value: Float): Float = ((value - 0.30f) / 0.62f).coerceIn(0f, 1f)
-
-    // Far (high frequency) curtains first; nearer ones paint over them.
-    for (column in columns - 1 downTo 0) {
-        val bin = (column * (bins - 1) / max(columns - 1, 1)).coerceIn(0, bins - 1)
-        val z = depthOf(column)
-
-        val ridge = Path()
-        val body = Path()
-        for (index in 0 until rows) {
-            val amplitude = levelOf(history[index].getOrElse(bin) { 0f })
-            val point = position(timeX(index), amplitude * RIDGE_HEIGHT, z)
-            if (index == 0) {
-                ridge.moveTo(point.x, point.y)
-                body.moveTo(point.x, point.y)
-            } else {
-                ridge.lineTo(point.x, point.y)
-                body.lineTo(point.x, point.y)
-            }
+    // Bucket the cloud into brightness × depth bands before drawing anything.
+    val buckets = Array(LEVELS * 2) { ArrayList<Offset>(rows * columns / (LEVELS * 2) + 16) }
+    for (index in 0 until rows) {
+        val row = history[index]
+        val x = timeX(index)
+        for (column in 0 until columns) {
+            val bin = (column * (bins - 1) / max(columns - 1, 1)).coerceIn(0, bins - 1)
+            val level = levelOf(row.getOrElse(bin) { 0f })
+            if (level <= 0f) continue
+            val z = depthOf(column)
+            buckets[(level * (LEVELS - 1)).toInt().coerceIn(0, LEVELS - 1) * 2 + (if (z < 0.55f) 0 else 1)]
+                .add(position(x, level * RIDGE_HEIGHT, z))
         }
-        for (index in rows - 1 downTo 0) {
-            val floor = position(timeX(index), 0f, z)
-            body.lineTo(floor.x, floor.y)
-        }
-        body.close()
+    }
 
-        val stops = ArrayList<Color>(SHADE_STEPS + 1)
-        for (step in 0..SHADE_STEPS) {
-            val from = step * rows / (SHADE_STEPS + 1)
-            val to = ((step + 1) * rows / (SHADE_STEPS + 1)).coerceAtLeast(from + 1)
-            var sum = 0f
-            var count = 0
-            for (index in from until min(to, rows)) {
-                sum += levelOf(history[index].getOrElse(bin) { 0f })
-                count++
-            }
-            stops += spectrumGrey(if (count > 0) sum / count else 0f)
+    val nearWidth = 2.3.dp.toPx()
+    val farWidth = 1.5.dp.toPx()
+    // Far band first so near particles sit on top, bright levels last so peaks read.
+    for (band in 1 downTo 0) {
+        val width = if (band == 0) nearWidth else farWidth
+        for (level in 0 until LEVELS) {
+            val points = buckets[level * 2 + band]
+            if (points.isEmpty()) continue
+            drawPoints(
+                points = points,
+                pointMode = PointMode.Points,
+                color = greyAt(level.toFloat() / (LEVELS - 1)),
+                strokeWidth = width,
+                cap = StrokeCap.Round,
+            )
         }
-        drawPath(
-            body,
-            Brush.linearGradient(stops, position(-1f, 0f, z), position(1f, 0f, z)),
-        )
-        drawPath(ridge, ridgeColor(0.55f), style = Stroke(1f))
     }
 
     // Axes.
@@ -211,22 +200,22 @@ internal fun DrawScope.drawSpectrogram(
     }
 }
 
-/** Near-monochrome ramp, matching the reference visualiser (dark floor → white peaks). */
-private fun spectrumGrey(level: Float): Color {
-    val stops = GREY_STOPS
-    // Lift the mid-tones: the reference reads as a light grey sheet, not a high-contrast one.
-    val scaled = Math.pow(level.coerceIn(0f, 1f).toDouble(), 0.72).toFloat() * (stops.size - 1)
-    val index = scaled.toInt().coerceIn(0, stops.size - 2)
-    return lerp(stops[index], stops[index + 1], scaled - index)
+/** Stretch the useful part of the dBFS scale, like the flat graph modes do. */
+private fun levelOf(value: Float): Float = ((value - 0.30f) / 0.62f).coerceIn(0f, 1f)
+
+/** Near-monochrome ramp matching the reference visualiser. */
+private fun greyAt(position: Float): Color {
+    val scaled = position.coerceIn(0f, 1f) * (GREY_STOPS.size - 1)
+    val index = scaled.toInt().coerceIn(0, GREY_STOPS.size - 2)
+    return lerp(GREY_STOPS[index], GREY_STOPS[index + 1], scaled - index)
 }
 
 private val GREY_STOPS = listOf(
-    Color(0xFF070A0F),
-    Color(0xFF1B2530),
-    Color(0xFF3E4C5A),
-    Color(0xFF7B8B9B),
-    Color(0xFFB9C6D2),
-    Color(0xFFF2F7FC),
+    Color(0xFF1A222B),
+    Color(0xFF384453),
+    Color(0xFF4E5D6C),
+    Color(0xFF7C8B9A),
+    Color(0xFFAEBBC7),
+    Color(0xFFD8E1EA),
+    Color(0xFFF4F8FC),
 )
-
-private fun ridgeColor(alpha: Float) = Color(0xFFE8F1FA).copy(alpha = alpha)
