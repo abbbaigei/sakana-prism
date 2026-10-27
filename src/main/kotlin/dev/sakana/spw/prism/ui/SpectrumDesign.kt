@@ -182,7 +182,7 @@ fun SpectrumDesign(controller: SpectrumController) {
                     }
                 }
                 if (showSettings) {
-                    SettingsRail(controller, graphMode, theme) {
+                    SettingsRail(controller, graphMode, theme, showGraphModes = viewMode == ViewMode.SPECTRUM) {
                         SpectrumSettings.chooseGraphMode(it)
                     }
                 }
@@ -446,6 +446,7 @@ private fun SettingsRail(
     controller: SpectrumController,
     mode: GraphMode,
     theme: ThemePreset,
+    showGraphModes: Boolean,
     onMode: (GraphMode) -> Unit,
 ) {
     Column(
@@ -455,12 +456,15 @@ private fun SettingsRail(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Text("控制", fontSize = 9.sp, letterSpacing = 2.sp, color = Muted)
-        Column {
-            Text("显示", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                GraphMode.entries.forEach { item ->
-                    Chip(item.label, item == mode, theme.accent) { onMode(item) }
+        // Graph modes only mean something on the spectrum page; the field view hides them.
+        if (showGraphModes) {
+            Column {
+                Text("显示", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    GraphMode.entries.forEach { item ->
+                        Chip(item.label, item == mode, theme.accent) { onMode(item) }
+                    }
                 }
             }
         }
