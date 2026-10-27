@@ -377,6 +377,9 @@ private fun SpectrumPanel(
                             textMeasurer = textMeasurer,
                             labelStyle = TextStyle(fontSize = 9.sp, color = Muted, fontFamily = FontFamily.Monospace),
                             axisColor = Line.copy(alpha = 0.75f),
+                            // A slow frame means the rasterizer is the bottleneck; drop the
+                            // wide halo first instead of dropping the whole frame rate.
+                            halo = metrics.drawMs < 20f,
                         )
                     }
                     GraphMode.MIRROR -> {
