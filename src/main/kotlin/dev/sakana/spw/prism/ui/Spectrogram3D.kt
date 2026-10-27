@@ -27,7 +27,7 @@ import kotlin.math.sin
 private const val MESH_COLS = 128
 
 /** How tall the amplitude peaks are, in slab space. */
-private const val RIDGE_HEIGHT = 0.10f
+private const val RIDGE_HEIGHT = 0.20f
 
 /** The surface starts a little behind the front edge so the floor stays visible. */
 private const val DEPTH_MARGIN = 0.12f
@@ -77,7 +77,12 @@ internal fun DrawScope.drawSpectrogram(
         return Offset(xr * k, (zr * sinPitch + h * cosPitch) * k)
     }
 
-    val corners = listOf(raw(-1f, 0f, 0f), raw(1f, 0f, 0f), raw(-1f, 0f, 1f), raw(1f, 0f, 1f))
+    // Include the peak relief in the bounds so taller ridges cannot clip at the top.
+    val corners = listOf(
+        raw(-1f, 0f, 0f), raw(1f, 0f, 0f), raw(-1f, 0f, 1f), raw(1f, 0f, 1f),
+        raw(-1f, RIDGE_HEIGHT, 0f), raw(1f, RIDGE_HEIGHT, 0f),
+        raw(-1f, RIDGE_HEIGHT, 1f), raw(1f, RIDGE_HEIGHT, 1f),
+    )
     val minX = corners.minOf { it.x }
     val maxX = corners.maxOf { it.x }
     val minY = corners.minOf { it.y }
