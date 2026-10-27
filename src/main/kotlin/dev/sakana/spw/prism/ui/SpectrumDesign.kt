@@ -60,7 +60,7 @@ import dev.sakana.spw.prism.settings.ColorMode
 import dev.sakana.spw.prism.settings.GraphMode
 import dev.sakana.spw.prism.settings.SpectrumSettings
 import dev.sakana.spw.prism.settings.ThemePreset
-import dev.sakana.spw.prism.settings.WaterfallView
+import dev.sakana.spw.prism.settings.SpectrogramView
 import kotlin.math.max
 import kotlin.math.pow
 
@@ -234,7 +234,7 @@ private fun SpectrumPanel(
     val sampledAt = System.nanoTime()
     if (sampledAt - lastSampleAt[0] >= 33_000_000L) {
         lastSampleAt[0] = sampledAt
-        if (history.size >= WATERFALL_ROWS) history.removeLast()
+        if (history.size >= SPECTROGRAM_ROWS) history.removeLast()
         history.addFirst(bars)
     }
     val brush = remember(palette) { Brush.horizontalGradient(palette.spectrum) }
@@ -335,10 +335,9 @@ private fun SpectrumPanel(
                         drawPath(line, brush, style = Stroke(1.8.dp.toPx()))
                     }
                     GraphMode.WATERFALL -> {
-                        drawWaterfall(
+                        drawSpectrogram(
                             history = history.toList(),
-                            view = SpectrumSettings.waterfallView,
-                            palette = palette,
+                            view = SpectrumSettings.spectrogramView,
                             area = androidx.compose.ui.geometry.Rect(
                                 6.dp.toPx(),
                                 6.dp.toPx(),
@@ -348,7 +347,6 @@ private fun SpectrumPanel(
                             textMeasurer = textMeasurer,
                             labelStyle = TextStyle(fontSize = 9.sp, color = Muted, fontFamily = FontFamily.Monospace),
                             axisColor = Line.copy(alpha = 0.75f),
-                            ridgeColor = palette.spectrum.getOrElse(2) { theme.accent },
                         )
                     }
                     GraphMode.MIRROR -> {
@@ -439,20 +437,20 @@ private fun SettingsRail(
         }
         if (mode == GraphMode.WATERFALL) {
             Column {
-                Text("瀑布视角", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Text("声谱图视角", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    WaterfallView.entries.take(3).forEach { item ->
-                        Chip(item.label, SpectrumSettings.waterfallView == item, theme.accent) {
-                            SpectrumSettings.chooseWaterfallView(item)
+                    SpectrogramView.entries.take(3).forEach { item ->
+                        Chip(item.label, SpectrumSettings.spectrogramView == item, theme.accent) {
+                            SpectrumSettings.chooseSpectrogramView(item)
                         }
                     }
                 }
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    WaterfallView.entries.drop(3).forEach { item ->
-                        Chip(item.label, SpectrumSettings.waterfallView == item, theme.accent) {
-                            SpectrumSettings.chooseWaterfallView(item)
+                    SpectrogramView.entries.drop(3).forEach { item ->
+                        Chip(item.label, SpectrumSettings.spectrogramView == item, theme.accent) {
+                            SpectrumSettings.chooseSpectrogramView(item)
                         }
                     }
                 }
