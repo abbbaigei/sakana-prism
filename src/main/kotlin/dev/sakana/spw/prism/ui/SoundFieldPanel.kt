@@ -174,7 +174,8 @@ fun SoundFieldPanel(
             Text(
                 "宽度 ${"%.0f".format(controller.stereoWidth * 100f)}%   ·   " +
                     "相关 ${"%+.2f".format(controller.correlation)}   ·   " +
-                    "峰值 ${"%.1f".format(db(max(controller.leftPeak, controller.rightPeak)))} dBFS",
+                    "峰值 ${"%.1f".format(db(max(controller.leftPeak, controller.rightPeak)))} dBFS" +
+                    gainSuffix(controller),
                 fontSize = 10.sp, color = muted, fontFamily = FontFamily.Monospace,
             )
             Spacer(Modifier.height(7.dp))
@@ -723,3 +724,18 @@ private fun db(amplitude: Float): Float =
     if (amplitude <= 1e-6f) -96f else (20.0 * log10(amplitude.toDouble())).toFloat().coerceIn(-96f, 0f)
 
 private fun dbNorm(db: Float): Float = ((db + 96f) / 96f).coerceIn(0f, 1f)
+
+/**
+ * Shows the loudness metadata baked into the file (ReplayGain / R128), so the meter can be
+ * read against what the track was mastered to instead of only its current level.
+ */
+private fun gainSuffix(controller: SpectrumController): String {
+    val tags = controller.loudness ?: return "   ·   ReplayGain 无"
+    val gain = tags.gainDb
+    val parts = buildList {
+        if (gain != null) add("增益 ${"%+.1f".format(gain)} dB")
+        tags.trackPeak?.let { add("真峰值 ${"%.2f".format(it)}") }
+        if (gain == null) tags.albumGainDb?.let { add("专辑增益 ${"%+.1f".format(it)} dB") }
+    }
+    return if (parts.isEmpty()) "   ·   ReplayGain 无" else "   ·   " + parts.joinToString(" · ")
+}

@@ -11,6 +11,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import dev.sakana.spw.prism.audio.BassBootstrap
 import dev.sakana.spw.prism.audio.SpectrumAnalyzer
+import dev.sakana.spw.prism.audio.LoudnessTags
 import dev.sakana.spw.prism.audio.SpectrumLayout
 import dev.sakana.spw.prism.settings.SpectrumSettings
 import dev.sakana.spw.prism.ui.SpectrumDesign
@@ -50,6 +51,9 @@ class SpectrumController(
     var error by mutableStateOf<String?>(null)
         private set
     var sampleRate by mutableIntStateOf(0)
+        private set
+    /** ReplayGain / R128 metadata of the current track, when the file carries it. */
+    var loudness by mutableStateOf<LoudnessTags?>(null)
         private set
     var leftPeak by mutableFloatStateOf(0f)
         private set
@@ -123,6 +127,12 @@ class SpectrumController(
     fun start() {
         if (!running.compareAndSet(false, true)) return
         applyMode(mode)
+        Thread({
+            loudness = LoudnessTags.read(trackPath)
+        }, "SpectrumTags").apply {
+            isDaemon = true
+            start()
+        }
         worker = Thread({
             try {
                 val bass = BassBootstrap.load()
