@@ -229,7 +229,7 @@ private fun SpectrumPanel(
     val textMeasurer = rememberTextMeasurer()
     // The waterfall needs a steady time base: sample at ~30 Hz instead of once per
     // recomposition, otherwise the slab depth would depend on the refresh rate.
-    val history = remember { ArrayDeque<FloatArray>() }
+    val history = remember(barCount) { ArrayDeque<FloatArray>() }
     val lastSampleAt = remember { longArrayOf(0L) }
     val sampledAt = System.nanoTime()
     if (sampledAt - lastSampleAt[0] >= 33_000_000L) {

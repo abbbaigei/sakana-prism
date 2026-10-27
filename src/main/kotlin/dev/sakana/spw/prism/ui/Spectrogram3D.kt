@@ -121,6 +121,14 @@ internal fun DrawScope.drawSpectrogram(
     }
     drawPath(gridPath, axisColor.copy(alpha = 0.30f), style = Stroke(1f))
 
+    // A row's width can differ from the newest one right after the bar count changes,
+    // so clamp instead of trusting the shared column index.
+    fun levelAt(row: FloatArray, column: Int): Float {
+        if (row.isEmpty()) return 0f
+        val bin = binOf(column).coerceIn(0, row.size - 1)
+        return levelOf(row[bin])
+    }
+
     // Heightfield vertices: one per (time, frequency) sample.
     val vertexCount = rows * columns
     val positions = FloatArray(vertexCount * 2)
@@ -129,7 +137,7 @@ internal fun DrawScope.drawSpectrogram(
         val row = history[i]
         val x = timeX(i)
         for (column in 0 until columns) {
-            val level = levelOf(row[binOf(column)])
+            val level = levelAt(row, column)
             val z = depthOf(column)
             val point = position(x, level * RIDGE_HEIGHT, z)
             val index = i * columns + column
@@ -171,25 +179,27 @@ internal fun DrawScope.drawSpectrogram(
         paint,
     )
 
-    // Ridges: one thin polyline per frequency band, giving the striated texture.
-    val ridgePaint = Paint().apply {
-        isAntiAlias = true
-        strokeWidth = 0.9.dp.toPx()
-        strokeCap = PaintStrokeCap.ROUND
-        color = 0x66E8F1FA.toInt()
-    }
-    val stride = 1
-    var column = columns - 1
-    while (column >= 1) {
-        val path = Path()
+    // Ridges: one polyline per frequency band. Drawn in three passes — two wide and faint
+    // for the halo, one crisp on top — which fakes the bloom the reference has without
+    // paying for an offscreen blur.
+    val ridgePath = Path()
+    for (column in columns - 1 downTo 1) {
         for (i in 0 until rows) {
-            val level = levelOf(history[i][binOf(column)])
+            val level = levelAt(history[i], column)
             val point = position(timeX(i), level * RIDGE_HEIGHT, depthOf(column))
-            if (i == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+            if (i == 0) ridgePath.moveTo(point.x, point.y) else ridgePath.lineTo(point.x, point.y)
         }
-        drawPath(path, Color(0x66E8F1FA), style = Stroke(0.9.dp.toPx()))
-        column -= stride
     }
+    val glowSteps = floatArrayOf(6.5f, 3.2f)
+    val glowAlphas = floatArrayOf(0.05f, 0.10f)
+    for (step in glowSteps.indices) {
+        drawPath(
+            ridgePath,
+            Color(0xFFBFE4FF).copy(alpha = glowAlphas[step]),
+            style = Stroke(glowSteps[step].dp.toPx()),
+        )
+    }
+    drawPath(ridgePath, Color(0x99E8F1FA), style = Stroke(0.9.dp.toPx()))
 
     // Axes.
     val backLeft = position(-1f, 0f, 1f)
