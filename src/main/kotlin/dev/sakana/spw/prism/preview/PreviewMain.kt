@@ -38,6 +38,8 @@ class SpectrumController(
     var peakHz by mutableIntStateOf(0)
         private set
     var actualFps by mutableFloatStateOf(0f)
+    /** Smoothed cost of one analysis frame, milliseconds. */
+    var analyzeMs by mutableFloatStateOf(0f)
         private set
     var targetFps by mutableIntStateOf(60)
         private set
@@ -133,7 +135,11 @@ class SpectrumController(
                     while (running.get()) {
                         val playing = playingProvider?.invoke() ?: true
                         if (playing) {
+                            val analyzeStarted = System.nanoTime()
                             val frame = analyzer.analyze(position)
+                            val analyzeNs = System.nanoTime() - analyzeStarted
+                            analyzeMs = if (analyzeMs <= 0f) analyzeNs / 1_000_000f
+                            else analyzeMs * 0.9f + (analyzeNs / 1_000_000f) * 0.1f
                             var hasFieldSignal = false
                             if (frame != null) {
                                 targetBands.set(frame.bands)

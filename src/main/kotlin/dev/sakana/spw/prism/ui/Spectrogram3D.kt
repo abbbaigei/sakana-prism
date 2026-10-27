@@ -183,11 +183,12 @@ internal fun DrawScope.drawSpectrogram(
             val point = position(timeX(i), level * RIDGE_HEIGHT, depthOf(ridgeColumn))
             if (i == 0) ridgePath.moveTo(point.x, point.y) else ridgePath.lineTo(point.x, point.y)
         }
-        ridgeColumn -= 3
+        ridgeColumn -= 2
     }
-    // One thin halo pass instead of two fat ones: thick strokes over a path this long are
-    // by far the most expensive thing on a software renderer.
-    drawPath(ridgePath, Color(0xFFBFE4FF).copy(alpha = 0.08f), style = Stroke(2.4.dp.toPx()))
+    // Halo is back: two soft passes under the crisp line. Kept at two instead of three
+    // because thick strokes over a path this long are the most expensive thing here.
+    drawPath(ridgePath, Color(0xFFBFE4FF).copy(alpha = 0.05f), style = Stroke(5.0.dp.toPx()))
+    drawPath(ridgePath, Color(0xFFCFE9FF).copy(alpha = 0.09f), style = Stroke(2.6.dp.toPx()))
     drawPath(ridgePath, Color(0x99E8F1FA), style = Stroke(0.9.dp.toPx()))
 
     // Axes.

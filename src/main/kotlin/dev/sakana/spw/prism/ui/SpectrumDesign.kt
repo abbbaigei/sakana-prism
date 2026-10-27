@@ -170,7 +170,7 @@ fun SpectrumDesign(controller: SpectrumController) {
                     if (viewMode == ViewMode.SPECTRUM) {
                         SpectrumPanel(controller, graphMode, theme, artworkPalette, barCount, showPeaks, animations, renderMetrics, Modifier.weight(1f))
                         Spacer(Modifier.height(16.dp))
-                        Footer(controller, theme)
+                        Footer(controller, theme, renderMetrics)
                     } else {
                         SoundFieldPanel(
                             controller = controller,
@@ -432,7 +432,7 @@ private fun SpectrumPanel(
 }
 
 @Composable
-private fun Footer(controller: SpectrumController, theme: ThemePreset) {
+private fun Footer(controller: SpectrumController, theme: ThemePreset, metrics: RenderMetrics) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text("峰值", fontSize = 9.sp, letterSpacing = 1.4.sp, color = Muted)
         Spacer(Modifier.width(9.dp))
@@ -445,6 +445,12 @@ private fun Footer(controller: SpectrumController, theme: ThemePreset) {
         stamps.addLast(nowNs)
         while (stamps.isNotEmpty() && nowNs - stamps.first() > 1_000_000_000L) stamps.removeFirst()
         Text("${stamps.size} fps  ·  ", fontSize = 9.sp, color = Muted)
+        Text(
+            "绘制 ${"%.1f".format(metrics.drawMs)} ms  ·  分析 ${"%.1f".format(controller.analyzeMs)} ms",
+            fontSize = 9.sp,
+            color = Muted,
+        )
+        Spacer(Modifier.width(10.dp))
         Text("${controller.sampleRate / 1000.0} kHz  ·  16384 窗口", fontSize = 9.sp, color = Muted)
     }
 }
