@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.sakana.spw.prism.audio.AnalysisScope
 import dev.sakana.spw.prism.audio.SpectrumLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -97,8 +98,16 @@ fun SpectrumDesign(controller: SpectrumController) {
     LaunchedEffect(controller, SpectrumSettings.frameMode) {
         controller.applyMode(SpectrumSettings.frameMode)
     }
-    val windowFocused = LocalWindowInfo.current.isWindowFocused
-    LaunchedEffect(windowFocused) { controller.setUnfocused(!windowFocused) }
+    // LocalWindowInfo reports false inside a host hook composition, which would pin the
+    // whole plugin to the background frame cap. Ask AWT instead: is any of this
+    // application's windows active right now?
+    LaunchedEffect(controller) {
+        while (true) {
+            val focused = java.awt.Window.getWindows().any { it.isActive && it.isVisible }
+            controller.setUnfocused(!focused)
+            kotlinx.coroutines.delay(300)
+        }
+    }
     val baseDensity = LocalDensity.current
     CompositionLocalProvider(
         LocalDensity provides Density(baseDensity.density, baseDensity.fontScale * 1.2f)
@@ -107,6 +116,10 @@ fun SpectrumDesign(controller: SpectrumController) {
         var viewMode by remember { mutableStateOf(ViewMode.SPECTRUM) }
         var showSettings by remember { mutableStateOf(true) }
         var fieldExpanded by remember { mutableStateOf(false) }
+        // Keep the invisible view from paying for analysis it will never draw.
+        LaunchedEffect(viewMode, fieldExpanded) {
+            AnalysisScope.fieldVisible = viewMode == ViewMode.FIELD || fieldExpanded
+        }
         val renderMetrics = remember { RenderMetrics() }
         val graphMode = SpectrumSettings.graphMode
         val theme = SpectrumSettings.theme

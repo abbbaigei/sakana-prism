@@ -5,6 +5,11 @@ import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.sqrt
 
+/** Set by the UI so the PCM scatter/level pass is skipped while the field view is hidden. */
+internal object AnalysisScope {
+    @Volatile var fieldVisible: Boolean = true
+}
+
 internal data class SpectrumFrame(
     val bands: FloatArray,
     val peakHz: Int,
@@ -38,6 +43,9 @@ internal class SpectrumAnalyzer(
         index
     }
     private val lowAligned = FloatArray(BandLayout.LOW_BANDS)
+    // Last low-band result that was actually aligned with the main window.
+    private val lowHold = FloatArray(BandLayout.LOW_BANDS)
+    private var lowHoldAt = 0L
     private val lowBands = LowBandAnalyzer(bass, path).also { it.start() }
     private val nyquist = stream.sampleRate / 2.0
     private val pcmFrames = 1024
@@ -51,7 +59,16 @@ internal class SpectrumAnalyzer(
         // Main 16384 FFT and low 32768 FFT must share the same window centre.
         val analysisCenter = fftStart + (16384.0 / stream.sampleRate * 500.0).toLong()
         lowBands.centerMs = analysisCenter
-        val hasLow = lowBands.readAligned(analysisCenter, lowAligned)
+        // The low worker runs at its own pace. When its newest frame is too old, holding
+        // the last aligned values for a moment is far less jarring than flipping those
+        // bars between the low FFT and the main FFT on alternating frames.
+        val fresh = lowBands.readAligned(analysisCenter, lowAligned)
+        if (fresh) {
+            lowAligned.copyInto(lowHold)
+            lowHoldAt = System.nanoTime()
+        }
+        val hasLow = fresh || (lowHoldAt != 0L && System.nanoTime() - lowHoldAt < 600_000_000L)
+        if (hasLow && !fresh) lowHold.copyInto(lowAligned)
 
         stream.seekMs(fftStart)
         val main = (if (use8192) stream.readFft8192() else stream.readFft16384()) ?: return null
@@ -89,7 +106,13 @@ internal class SpectrumAnalyzer(
 
         val peakHz = (peakBin.toDouble() / fft.size * nyquist).toInt()
             .coerceIn(20, 20000)
-        val pcm = readStereoWindow(positionMs)
+        // Only the sound-field view consumes the PCM window and the L/R meters; when it
+        // is not on screen this pass (a 1024-frame scan plus a 1536-float array) is wasted.
+        val pcm = if (AnalysisScope.fieldVisible) {
+            readStereoWindow(positionMs)
+        } else {
+            StereoWindow(0f, 0f, 0f, 0f, stream.channels > 1, 0f, 0f, FloatArray(0))
+        }
         return SpectrumFrame(
             bands = bands.copyOf(),
             peakHz = peakHz,

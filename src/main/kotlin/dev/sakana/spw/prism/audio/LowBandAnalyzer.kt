@@ -45,7 +45,7 @@ internal class LowBandAnalyzer(
                             val old = state.get()
                             state.set(State(frame, old.latest))
                         }
-                        Thread.sleep(60L)
+                        Thread.sleep(40L)
                     }
                 }
             } catch (_: Throwable) {
