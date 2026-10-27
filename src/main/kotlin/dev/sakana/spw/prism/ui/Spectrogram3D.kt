@@ -21,7 +21,7 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /** Frequency samples across the depth axis. */
-private const val FREQ_SAMPLES = 128
+private const val FREQ_SAMPLES = 384
 
 /** Brightness buckets, so the whole cloud goes out in a handful of draw calls. */
 private const val LEVELS = 9
@@ -33,7 +33,7 @@ private const val RIDGE_HEIGHT = 0.26f
 private const val DEPTH_MARGIN = 0.12f
 
 /** Frames kept in the history buffer. */
-const val SPECTROGRAM_ROWS = 64
+const val SPECTROGRAM_ROWS = 91
 
 /**
  * Point-cloud spectrogram: time runs left to right, frequency recedes from the front edge
@@ -133,8 +133,8 @@ internal fun DrawScope.drawSpectrogram(
         }
     }
 
-    val nearWidth = 2.3.dp.toPx()
-    val farWidth = 1.5.dp.toPx()
+    val nearWidth = 3.2.dp.toPx()
+    val farWidth = 2.2.dp.toPx()
     // Far band first so near particles sit on top, bright levels last so peaks read.
     for (band in 1 downTo 0) {
         val width = if (band == 0) nearWidth else farWidth
