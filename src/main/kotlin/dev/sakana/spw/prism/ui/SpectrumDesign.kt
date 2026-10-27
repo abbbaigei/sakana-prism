@@ -440,7 +440,7 @@ private fun SettingsRail(
                 Text("声谱图视角", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SpectrogramView.entries.take(3).forEach { item ->
+                    SpectrogramView.entries.take(2).forEach { item ->
                         Chip(item.label, SpectrumSettings.spectrogramView == item, theme.accent) {
                             SpectrumSettings.chooseSpectrogramView(item)
                         }
@@ -448,7 +448,7 @@ private fun SettingsRail(
                 }
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SpectrogramView.entries.drop(3).forEach { item ->
+                    SpectrogramView.entries.drop(2).forEach { item ->
                         Chip(item.label, SpectrumSettings.spectrogramView == item, theme.accent) {
                             SpectrumSettings.chooseSpectrogramView(item)
                         }
