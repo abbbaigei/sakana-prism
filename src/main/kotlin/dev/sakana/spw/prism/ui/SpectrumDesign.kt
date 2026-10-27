@@ -60,6 +60,7 @@ import dev.sakana.spw.prism.settings.ColorMode
 import dev.sakana.spw.prism.settings.GraphMode
 import dev.sakana.spw.prism.settings.SpectrumSettings
 import dev.sakana.spw.prism.settings.ThemePreset
+import dev.sakana.spw.prism.settings.WaterfallView
 import kotlin.math.max
 import kotlin.math.pow
 
@@ -226,9 +227,16 @@ private fun SpectrumPanel(
 ) {
     val bars = SpectrumLayout.aggregateBars(controller.bands, barCount)
     val textMeasurer = rememberTextMeasurer()
+    // The waterfall needs a steady time base: sample at ~30 Hz instead of once per
+    // recomposition, otherwise the slab depth would depend on the refresh rate.
     val history = remember { ArrayDeque<FloatArray>() }
-    if (history.size >= 48) history.removeLast()
-    history.addFirst(bars)
+    val lastSampleAt = remember { longArrayOf(0L) }
+    val sampledAt = System.nanoTime()
+    if (sampledAt - lastSampleAt[0] >= 33_000_000L) {
+        lastSampleAt[0] = sampledAt
+        if (history.size >= WATERFALL_ROWS) history.removeLast()
+        history.addFirst(bars)
+    }
     val brush = remember(palette) { Brush.horizontalGradient(palette.spectrum) }
     val linePath = remember { Path() }
     val fillPath = remember { Path() }
@@ -260,6 +268,9 @@ private fun SpectrumPanel(
                 val bottom = h - 18.dp.toPx()
                 val plotW = w - left
                 val plotH = bottom
+                // The 2D grid belongs to the flat graph modes; the waterfall draws its
+                // own axes on the projected slab.
+                if (mode != GraphMode.WATERFALL) {
                 val grid = Line.copy(alpha = 0.55f)
                 for (i in 0..8) {
                     val y = plotH * i / 8f
@@ -281,6 +292,7 @@ private fun SpectrumPanel(
                     700, 900, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 10000, 20000).forEach { hz ->
                     val x = xForHz(hz.toDouble(), left, plotW)
                     drawLine(grid, Offset(x, 0f), Offset(x, plotH), 1f)
+                }
                 }
                 val n = bars.size
                 val cellW = plotW / n
@@ -323,23 +335,21 @@ private fun SpectrumPanel(
                         drawPath(line, brush, style = Stroke(1.8.dp.toPx()))
                     }
                     GraphMode.WATERFALL -> {
-                        val rows = history.size
-                        val cellH = plotH / rows.coerceAtLeast(1)
-                        for (row in 0 until rows) {
-                            val values = history[row]
-                            for (i in 0 until n) {
-                                val v = values.getOrElse(i) { 0f }
-                                if (v <= 0.02f) continue
-                                val alpha = (0.18f + v * 0.82f).coerceIn(0f, 1f)
-                                val x0 = x0At(i)
-                                val x1 = x1At(i)
-                                drawRect(
-                                    color = theme.accent.copy(alpha = alpha),
-                                    topLeft = Offset(x0, row * cellH),
-                                    size = androidx.compose.ui.geometry.Size((x1 - x0 + 0.8f).coerceAtLeast(0.8f), cellH + 1f),
-                                )
-                            }
-                        }
+                        drawWaterfall(
+                            history = history.toList(),
+                            view = SpectrumSettings.waterfallView,
+                            palette = palette,
+                            area = androidx.compose.ui.geometry.Rect(
+                                6.dp.toPx(),
+                                6.dp.toPx(),
+                                w - 6.dp.toPx(),
+                                plotH - 2.dp.toPx(),
+                            ),
+                            spanSeconds = history.size * 0.033f,
+                            textMeasurer = textMeasurer,
+                            labelStyle = TextStyle(fontSize = 9.sp, color = Muted, fontFamily = FontFamily.Monospace),
+                            edgeColor = Line.copy(alpha = 0.75f),
+                        )
                     }
                     GraphMode.MIRROR -> {
                         val mid = plotH / 2f
@@ -372,17 +382,19 @@ private fun SpectrumPanel(
                 metrics.recordDraw(System.nanoTime() - drawStarted)
             }
             Spacer(Modifier.height(6.dp))
-            val ticks = listOf(
-                20 to "20", 30 to "30", 40 to "40", 50 to "50", 60 to "60", 80 to "80",
-                100 to "100", 200 to "200", 500 to "500", 1000 to "1k",
-                2000 to "2k", 5000 to "5k", 10000 to "10k", 20000 to "20k",
-            )
-            BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 42.dp).height(20.dp)) {
-                ticks.forEach { (hz, label) ->
-                    val frac = frequencyFraction(hz.toDouble()).toFloat()
-                    val x = (maxWidth * frac - 12.dp).coerceIn(0.dp, maxWidth - 32.dp)
-                    Box(Modifier.offset(x = x)) {
-                        Text(label, fontSize = 10.sp, color = Muted)
+            if (mode != GraphMode.WATERFALL) {
+                val ticks = listOf(
+                    20 to "20", 30 to "30", 40 to "40", 50 to "50", 60 to "60", 80 to "80",
+                    100 to "100", 200 to "200", 500 to "500", 1000 to "1k",
+                    2000 to "2k", 5000 to "5k", 10000 to "10k", 20000 to "20k",
+                )
+                BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 42.dp).height(20.dp)) {
+                    ticks.forEach { (hz, label) ->
+                        val frac = frequencyFraction(hz.toDouble()).toFloat()
+                        val x = (maxWidth * frac - 12.dp).coerceIn(0.dp, maxWidth - 32.dp)
+                        Box(Modifier.offset(x = x)) {
+                            Text(label, fontSize = 10.sp, color = Muted)
+                        }
                     }
                 }
             }
@@ -422,6 +434,27 @@ private fun SettingsRail(
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 GraphMode.entries.forEach { item ->
                     Chip(item.label, item == mode, theme.accent) { onMode(item) }
+                }
+            }
+        }
+        if (mode == GraphMode.WATERFALL) {
+            Column {
+                Text("瀑布视角", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    WaterfallView.entries.take(3).forEach { item ->
+                        Chip(item.label, SpectrumSettings.waterfallView == item, theme.accent) {
+                            SpectrumSettings.chooseWaterfallView(item)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    WaterfallView.entries.drop(3).forEach { item ->
+                        Chip(item.label, SpectrumSettings.waterfallView == item, theme.accent) {
+                            SpectrumSettings.chooseWaterfallView(item)
+                        }
+                    }
                 }
             }
         }

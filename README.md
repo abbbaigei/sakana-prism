@@ -14,7 +14,7 @@ Salt Player for Windows 的实时频谱与立体声声场可视化插件。
 
 - 16384 点主 FFT；低频单独用 32768 点长窗分析，再与高频平滑融合
 - 内部按 512 个对数频点划分（20 Hz – 20 kHz），显示柱数可选 64 / 96 / 128 / 160
-- 四种画法：柱状、曲线、镜像、瀑布
+- 四种画法：柱状、曲线、镜像、3D 瀑布（带五个视角预设：正面高 / 正面低 / 斜视 / 侧面低 / 侧面高）
 - 纵轴 0 ~ -96 dBFS，每 12 dB 一格
 
 **声场**
@@ -119,7 +119,8 @@ Sakana Prism is a realtime spectrum and stereo sound-field visualizer plugin for
 [Salt Player for Windows](https://store.steampowered.com/app/3009140/).
 
 Spectrum: 16384-point FFT plus a separate 32768-point low band, 512 log-spaced bins
-(20 Hz – 20 kHz), 64/96/128/160 display bars, four styles (bars, line, mirror, waterfall).
+(20 Hz – 20 kHz), 64/96/128/160 display bars, and four styles — bars, line, mirror, and a
+3D waterfall with five camera presets.
 
 Sound field: 768 real L/R PCM pairs per frame — polar scatter with trails, a 96-bin peak
 envelope with a slow-fall contour, Lissajous XY, and peak / hold / RMS meters.
