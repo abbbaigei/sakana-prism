@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -96,6 +97,8 @@ fun SpectrumDesign(controller: SpectrumController) {
     LaunchedEffect(controller, SpectrumSettings.frameMode) {
         controller.applyMode(SpectrumSettings.frameMode)
     }
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    LaunchedEffect(windowFocused) { controller.setUnfocused(!windowFocused) }
     val baseDensity = LocalDensity.current
     CompositionLocalProvider(
         LocalDensity provides Density(baseDensity.density, baseDensity.fontScale * 1.2f)
@@ -341,7 +344,7 @@ private fun SpectrumPanel(
                             area = androidx.compose.ui.geometry.Rect(
                                 6.dp.toPx(),
                                 6.dp.toPx(),
-                                w - 58.dp.toPx(),
+                                w - 52.dp.toPx(),
                                 plotH - 2.dp.toPx(),
                             ),
                             textMeasurer = textMeasurer,
@@ -542,6 +545,16 @@ private fun SettingsRail(
                     SpectrumSettings.animations, theme.accent) {
                     SpectrumSettings.updateAnimations(!SpectrumSettings.animations)
                 }
+            }
+        }
+        Column {
+            Text("性能", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Spacer(Modifier.height(8.dp))
+            Chip(
+                "非焦点时降低帧数 ${if (SpectrumSettings.lowFpsOnUnfocus) "ON" else "OFF"}",
+                SpectrumSettings.lowFpsOnUnfocus, theme.accent,
+            ) {
+                SpectrumSettings.updateLowFpsOnUnfocus(!SpectrumSettings.lowFpsOnUnfocus)
             }
         }
         Chip("恢复默认", false, theme.accent) {

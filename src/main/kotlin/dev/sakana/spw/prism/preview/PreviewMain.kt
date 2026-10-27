@@ -12,6 +12,7 @@ import androidx.compose.ui.window.rememberWindowState
 import dev.sakana.spw.prism.audio.BassBootstrap
 import dev.sakana.spw.prism.audio.SpectrumAnalyzer
 import dev.sakana.spw.prism.audio.SpectrumLayout
+import dev.sakana.spw.prism.settings.SpectrumSettings
 import dev.sakana.spw.prism.ui.SpectrumDesign
 import java.awt.GraphicsEnvironment
 import java.nio.file.Files
@@ -20,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
 
+private const val UNFOCUSED_FPS = 15
 enum class FrameMode(val label: String) {
     LOW("30"),
     SIXTY("60"),
@@ -73,6 +75,7 @@ class SpectrumController(
     private var holdAtL = 0L
     private var holdAtR = 0L
     private val holdWindowNs: Long get() = dev.sakana.spw.prism.settings.SpectrumSettings.peakHoldMs * 1_000_000L
+    private var unfocused = false
     private var fpsEma = 0f
     private var fpsPublishAt = 0L
     private val running = AtomicBoolean(false)
@@ -95,6 +98,19 @@ class SpectrumController(
             FrameMode.AUTO -> displayHz.coerceAtMost(165)
         }
     }
+
+    /**
+     * Window focus, reported by the UI. When the host window is in the background the
+     * analysis and display loops drop to [UNFOCUSED_FPS] so the plugin stops costing
+     * frames nobody can see (opt-out via 非焦点时降低帧数).
+     */
+    fun setUnfocused(value: Boolean) {
+        unfocused = value
+    }
+
+    /** Frame cap actually used by the loops. */
+    private val activeFps: Int
+        get() = if (unfocused && SpectrumSettings.lowFpsOnUnfocus) minOf(targetFps, UNFOCUSED_FPS) else targetFps
 
     fun start() {
         if (!running.compareAndSet(false, true)) return
@@ -166,7 +182,7 @@ class SpectrumController(
                             lastAutoAdjust = now
                             targetFps = ((targetFps + fpsEma) / 2f).toInt().coerceIn(30, displayHz)
                         }
-                        val interval = 1_000_000_000L / targetFps.coerceAtLeast(1)
+                        val interval = 1_000_000_000L / activeFps.coerceAtLeast(1)
                         if (!waitUntil(now + interval)) break
                     }
                 }
@@ -190,7 +206,7 @@ class SpectrumController(
                 var gain = 0f
                 var next = System.nanoTime()
                 while (running.get()) {
-                    val interval = 1_000_000_000L / targetFps.coerceAtLeast(1)
+                    val interval = 1_000_000_000L / activeFps.coerceAtLeast(1)
                     next += interval
                     if (!waitUntil(next)) break
                     val dt = interval / 1_000_000_000f

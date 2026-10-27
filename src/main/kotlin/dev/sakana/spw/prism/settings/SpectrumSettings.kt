@@ -64,6 +64,8 @@ object SpectrumSettings {
         private set
     var mainFft8192 by mutableStateOf(false)
         private set
+    var lowFpsOnUnfocus by mutableStateOf(true)
+        private set
     var peakHoldMs by mutableIntStateOf(1000)
         private set
     var peakDecayDbPerSec by mutableIntStateOf(21)
@@ -95,6 +97,7 @@ object SpectrumSettings {
         autoPlay = config.get("autoPlay", false) ?: false
         lowFftLarge = config.get("lowFftLarge", true) ?: true
         mainFft8192 = config.get("mainFft8192", false) ?: false
+        lowFpsOnUnfocus = config.get("lowFpsOnUnfocus", true) ?: true
         peakHoldMs = (config.get("peakHoldMs", 1000) ?: 1000).coerceIn(200, 4000)
         peakDecayDbPerSec = (config.get("peakDecayDbPerSec", 21) ?: 21).coerceIn(6, 60)
         runCatching {
@@ -156,6 +159,11 @@ object SpectrumSettings {
     fun updatePeaks(value: Boolean) {
         showPeaks = value
         persist("showPeaks", value)
+    }
+
+    fun updateLowFpsOnUnfocus(value: Boolean) {
+        lowFpsOnUnfocus = value
+        persist("lowFpsOnUnfocus", value)
     }
 
     fun updateAnimations(value: Boolean) {
@@ -235,6 +243,7 @@ object SpectrumSettings {
             it.set("autoPlay", autoPlay)
             it.set("lowFftLarge", lowFftLarge)
             it.set("mainFft8192", mainFft8192)
+            it.set("lowFpsOnUnfocus", lowFpsOnUnfocus)
             it.set("peakHoldMs", peakHoldMs)
             it.set("peakDecayDbPerSec", peakDecayDbPerSec)
             it.save()
