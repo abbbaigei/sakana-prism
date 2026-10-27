@@ -119,6 +119,7 @@ fun SpectrumDesign(controller: SpectrumController) {
         // Keep the invisible view from paying for analysis it will never draw.
         LaunchedEffect(viewMode, fieldExpanded) {
             AnalysisScope.fieldVisible = viewMode == ViewMode.FIELD || fieldExpanded
+            AnalysisScope.spectrumVisible = viewMode == ViewMode.SPECTRUM
         }
         val renderMetrics = remember { RenderMetrics() }
         val graphMode = SpectrumSettings.graphMode
@@ -247,20 +248,25 @@ private fun SpectrumPanel(
     // recomposition, otherwise the slab depth would depend on the refresh rate.
     val history = remember(barCount) { ArrayDeque<FloatArray>() }
     val lastSampleAt = remember { longArrayOf(0L) }
-    val sampledAt = System.nanoTime()
-    if (sampledAt - lastSampleAt[0] >= 33_000_000L) {
-        lastSampleAt[0] = sampledAt
-        if (history.size >= SPECTROGRAM_ROWS) history.removeLast()
-        history.addFirst(bars)
+    if (mode == GraphMode.WATERFALL) {
+        val sampledAt = System.nanoTime()
+        if (sampledAt - lastSampleAt[0] >= 33_000_000L) {
+            lastSampleAt[0] = sampledAt
+            if (history.size >= SPECTROGRAM_ROWS) history.removeLast()
+            history.addFirst(bars)
+        }
     }
     val brush = remember(palette) { Brush.horizontalGradient(palette.spectrum) }
     val linePath = remember { Path() }
     val fillPath = remember { Path() }
     val peakPath = remember { Path() }
     val peaks = remember(barCount) { FloatArray(barCount) }
-    for (i in peaks.indices) {
-        peaks[i] = if (animations) max(bars.getOrElse(i) { 0f }, peaks[i] - 0.006f)
-        else bars.getOrElse(i) { 0f }
+    // Peak tracking only exists for the two modes that draw peak markers.
+    if (mode == GraphMode.BARS || mode == GraphMode.LINE) {
+        for (i in peaks.indices) {
+            peaks[i] = if (animations) max(bars.getOrElse(i) { 0f }, peaks[i] - 0.006f)
+            else bars.getOrElse(i) { 0f }
+        }
     }
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -384,7 +390,7 @@ private fun SpectrumPanel(
                         drawPath(bottomPath, brush, style = Stroke(1.2.dp.toPx()))
                     }
                 }
-                if (showPeaks && mode != GraphMode.MIRROR && mode != GraphMode.WATERFALL) {
+                if (showPeaks && (mode == GraphMode.BARS || mode == GraphMode.LINE)) {
                     peakPath.rewind()
                     for (i in 0 until n) {
                         val x = xAt(i)

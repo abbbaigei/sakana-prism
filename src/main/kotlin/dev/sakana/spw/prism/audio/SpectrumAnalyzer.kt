@@ -7,7 +7,10 @@ import kotlin.math.sqrt
 
 /** Set by the UI so the PCM scatter/level pass is skipped while the field view is hidden. */
 internal object AnalysisScope {
+    /** Sound-field view on screen: the PCM window and L/R meters are needed. */
     @Volatile var fieldVisible: Boolean = true
+    /** Spectrum view on screen: the 16384-point FFT and its band mapping are needed. */
+    @Volatile var spectrumVisible: Boolean = true
 }
 
 internal data class SpectrumFrame(
@@ -48,6 +51,7 @@ internal class SpectrumAnalyzer(
     private var lowHoldAt = 0L
     private val lowBands = LowBandAnalyzer(bass, path).also { it.start() }
     private val nyquist = stream.sampleRate / 2.0
+    private val silentBands = FloatArray(SpectrumLayout.POINTS)
     private val pcmFrames = 1024
     private val fieldPairs = 768
 
@@ -55,6 +59,28 @@ internal class SpectrumAnalyzer(
     val channels: Int get() = stream.channels
 
     fun analyze(positionMs: Long): SpectrumFrame? {
+        // Nothing on screen needs a spectrum: skip the FFT entirely and only keep the
+        // PCM pass the field view (if visible) is waiting for.
+        if (!AnalysisScope.spectrumVisible) {
+            val pcm = if (AnalysisScope.fieldVisible) {
+                readStereoWindow(positionMs)
+            } else {
+                StereoWindow(0f, 0f, 0f, 0f, stream.channels > 1, 0f, 0f, FloatArray(0))
+            }
+            return SpectrumFrame(
+                bands = silentBands,
+                peakHz = 0,
+                rms = 0f,
+                leftPeak = pcm.leftPeak,
+                rightPeak = pcm.rightPeak,
+                leftRms = pcm.leftRms,
+                rightRms = pcm.rightRms,
+                stereo = pcm.stereo,
+                correlation = pcm.correlation,
+                stereoWidth = pcm.stereoWidth,
+                field = pcm.field,
+            )
+        }
         val fftStart = (positionMs - 90L).coerceAtLeast(0L)
         // Main 16384 FFT and low 32768 FFT must share the same window centre.
         val analysisCenter = fftStart + (16384.0 / stream.sampleRate * 500.0).toLong()
