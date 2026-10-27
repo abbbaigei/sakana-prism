@@ -12,6 +12,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.dp
 import dev.sakana.spw.prism.audio.SpectrumLayout
+import dev.sakana.spw.prism.settings.SpectrogramGlow
 import dev.sakana.spw.prism.settings.SpectrogramView
 import org.jetbrains.skia.BlendMode
 import org.jetbrains.skia.Paint
@@ -52,7 +53,7 @@ internal fun DrawScope.drawSpectrogram(
     textMeasurer: TextMeasurer,
     labelStyle: TextStyle,
     axisColor: Color,
-    halo: Boolean = true,
+    glow: SpectrogramGlow = SpectrogramGlow.MEDIUM,
 ) {
     if (history.isEmpty() || area.width <= 0f || area.height <= 0f) return
 
@@ -186,11 +187,19 @@ internal fun DrawScope.drawSpectrogram(
         }
         ridgeColumn -= 1
     }
-    // Halo is back: two soft passes under the crisp line. Kept at two instead of three
-    // because thick strokes over a path this long are the most expensive thing here.
-    if (halo) {
-    drawPath(ridgePath, Color(0xFFBFE4FF).copy(alpha = 0.05f), style = Stroke(5.0.dp.toPx()))
-    drawPath(ridgePath, Color(0xFFCFE9FF).copy(alpha = 0.09f), style = Stroke(2.6.dp.toPx()))
+    // Halo under the crisp ridge line. Wide strokes over a path this long are the most
+    // expensive thing in the frame, so the strength is a user setting, not a guess.
+    when (glow) {
+        SpectrogramGlow.OFF -> Unit
+        SpectrogramGlow.MEDIUM -> drawPath(
+            ridgePath,
+            Color(0xFFCFE9FF).copy(alpha = 0.09f),
+            style = Stroke(2.6.dp.toPx()),
+        )
+        SpectrogramGlow.STRONG -> {
+            drawPath(ridgePath, Color(0xFFBFE4FF).copy(alpha = 0.05f), style = Stroke(5.0.dp.toPx()))
+            drawPath(ridgePath, Color(0xFFCFE9FF).copy(alpha = 0.09f), style = Stroke(2.6.dp.toPx()))
+        }
     }
     drawPath(ridgePath, Color(0x99E8F1FA), style = Stroke(0.9.dp.toPx()))
 

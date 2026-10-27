@@ -62,6 +62,7 @@ import dev.sakana.spw.prism.settings.ColorMode
 import dev.sakana.spw.prism.settings.GraphMode
 import dev.sakana.spw.prism.settings.SpectrumSettings
 import dev.sakana.spw.prism.settings.ThemePreset
+import dev.sakana.spw.prism.settings.SpectrogramGlow
 import dev.sakana.spw.prism.settings.SpectrogramView
 import kotlin.math.max
 import kotlin.math.pow
@@ -379,7 +380,7 @@ private fun SpectrumPanel(
                             axisColor = Line.copy(alpha = 0.75f),
                             // A slow frame means the rasterizer is the bottleneck; drop the
                             // wide halo first instead of dropping the whole frame rate.
-                            halo = metrics.drawMs < 20f,
+                            glow = SpectrumSettings.spectrogramGlow,
                         )
                     }
                     GraphMode.MIRROR -> {
@@ -501,6 +502,19 @@ private fun SettingsRail(
                     SpectrogramView.entries.drop(2).forEach { item ->
                         Chip(item.label, SpectrumSettings.spectrogramView == item, theme.accent) {
                             SpectrumSettings.chooseSpectrogramView(item)
+                        }
+                    }
+                }
+            }
+        }
+        if (showGraphModes && mode == GraphMode.WATERFALL) {
+            Column {
+                Text("辉光", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SpectrogramGlow.entries.forEach { item ->
+                        Chip(item.label, SpectrumSettings.spectrogramGlow == item, theme.accent) {
+                            SpectrumSettings.chooseSpectrogramGlow(item)
                         }
                     }
                 }

@@ -64,6 +64,8 @@ object SpectrumSettings {
         private set
     var mainFft8192 by mutableStateOf(false)
         private set
+    var spectrogramGlow by mutableStateOf(SpectrogramGlow.MEDIUM)
+        private set
     var lowFpsOnUnfocus by mutableStateOf(true)
         private set
     var peakHoldMs by mutableIntStateOf(1000)
@@ -97,6 +99,9 @@ object SpectrumSettings {
         autoPlay = config.get("autoPlay", false) ?: false
         lowFftLarge = config.get("lowFftLarge", true) ?: true
         mainFft8192 = config.get("mainFft8192", false) ?: false
+        spectrogramGlow = runCatching {
+            SpectrogramGlow.valueOf(config.get("spectrogramGlow", SpectrogramGlow.MEDIUM.name) ?: SpectrogramGlow.MEDIUM.name)
+        }.getOrDefault(SpectrogramGlow.MEDIUM)
         lowFpsOnUnfocus = config.get("lowFpsOnUnfocus", true) ?: true
         peakHoldMs = (config.get("peakHoldMs", 1000) ?: 1000).coerceIn(200, 4000)
         peakDecayDbPerSec = (config.get("peakDecayDbPerSec", 21) ?: 21).coerceIn(6, 60)
@@ -161,6 +166,11 @@ object SpectrumSettings {
         persist("showPeaks", value)
     }
 
+    fun chooseSpectrogramGlow(value: SpectrogramGlow) {
+        spectrogramGlow = value
+        persist("spectrogramGlow", value.name)
+    }
+
     fun updateLowFpsOnUnfocus(value: Boolean) {
         lowFpsOnUnfocus = value
         persist("lowFpsOnUnfocus", value)
@@ -209,6 +219,7 @@ object SpectrumSettings {
         frameMode = FrameMode.SIXTY
         graphMode = GraphMode.BARS
         spectrogramView = SpectrogramView.FRONT_LOW
+        spectrogramGlow = SpectrogramGlow.MEDIUM
         barCount = 160
         theme = ThemePreset.AURORA
         colorMode = ColorMode.COVER
@@ -243,6 +254,7 @@ object SpectrumSettings {
             it.set("autoPlay", autoPlay)
             it.set("lowFftLarge", lowFftLarge)
             it.set("mainFft8192", mainFft8192)
+            it.set("spectrogramGlow", spectrogramGlow.name)
             it.set("lowFpsOnUnfocus", lowFpsOnUnfocus)
             it.set("peakHoldMs", peakHoldMs)
             it.set("peakDecayDbPerSec", peakDecayDbPerSec)
