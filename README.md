@@ -44,6 +44,9 @@ Salt Player for Windows 的实时频谱与立体声声场可视化插件。
 
 ## 配置要求
 
+详细版（含逐项说明、实测数据、降级建议）：[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)
+
+
 插件本体很小（安装包约 360 KB，解压后约 810 KB），门槛主要在渲染和 FFT 上。
 
 **最低配置**（能打开、能跑 30fps）
