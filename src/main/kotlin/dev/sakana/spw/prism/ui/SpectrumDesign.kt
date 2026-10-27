@@ -105,6 +105,7 @@ fun SpectrumDesign(controller: SpectrumController) {
         while (true) {
             val focused = java.awt.Window.getWindows().any { it.isActive && it.isVisible }
             controller.setUnfocused(!focused)
+            controller.setThrottleEnabled(SpectrumSettings.lowFpsOnUnfocus)
             kotlinx.coroutines.delay(300)
         }
     }
@@ -437,6 +438,13 @@ private fun Footer(controller: SpectrumController, theme: ThemePreset) {
         Spacer(Modifier.width(9.dp))
         Text("${controller.peakHz} Hz", fontSize = 12.sp, color = theme.accent, fontFamily = FontFamily.Monospace)
         Spacer(Modifier.weight(1f))
+        // Real repaint rate: this counter only advances when the page actually composes,
+        // so it shows host-side throttling that the plugin itself cannot cause.
+        val stamps = remember { ArrayDeque<Long>(64) }
+        val nowNs = System.nanoTime()
+        stamps.addLast(nowNs)
+        while (stamps.isNotEmpty() && nowNs - stamps.first() > 1_000_000_000L) stamps.removeFirst()
+        Text("${stamps.size} fps  ·  ", fontSize = 9.sp, color = Muted)
         Text("${controller.sampleRate / 1000.0} kHz  ·  16384 窗口", fontSize = 9.sp, color = Muted)
     }
 }

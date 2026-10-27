@@ -76,6 +76,7 @@ class SpectrumController(
     private var holdAtR = 0L
     private val holdWindowNs: Long get() = dev.sakana.spw.prism.settings.SpectrumSettings.peakHoldMs * 1_000_000L
     private var unfocused = false
+    @Volatile private var throttleEnabled = true
     private var fpsEma = 0f
     private var fpsPublishAt = 0L
     private val running = AtomicBoolean(false)
@@ -108,9 +109,14 @@ class SpectrumController(
         unfocused = value
     }
 
+    /** Mirrors the 非焦点时降低帧数 switch so the worker threads never read UI state. */
+    fun setThrottleEnabled(value: Boolean) {
+        throttleEnabled = value
+    }
+
     /** Frame cap actually used by the loops. */
     private val activeFps: Int
-        get() = if (unfocused && SpectrumSettings.lowFpsOnUnfocus) minOf(targetFps, UNFOCUSED_FPS) else targetFps
+        get() = if (unfocused && throttleEnabled) minOf(targetFps, UNFOCUSED_FPS) else targetFps
 
     fun start() {
         if (!running.compareAndSet(false, true)) return
