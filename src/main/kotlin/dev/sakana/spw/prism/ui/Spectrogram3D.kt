@@ -103,7 +103,8 @@ internal fun DrawScope.drawSpectrogram(
     fun binOf(column: Int): Int =
         (column.toFloat() * (bins - 1) / (columns - 1)).toInt().coerceIn(0, bins - 1)
 
-    // Floor grid first, so the surface floats above it.
+    // Floor grid first, so the surface floats above it. The outermost time lines are
+    // skipped: they read as hard side borders, which the reference does not have.
     val gridPath = Path()
     for (step in 0..6) {
         val z = DEPTH_MARGIN + (1f - DEPTH_MARGIN) * step / 6f
@@ -112,7 +113,7 @@ internal fun DrawScope.drawSpectrogram(
         gridPath.moveTo(a.x, a.y)
         gridPath.lineTo(b.x, b.y)
     }
-    for (step in 0..12) {
+    for (step in 1 until 12) {
         val x = -1f + 2f * step / 12f
         val a = position(x, 0f, DEPTH_MARGIN)
         val b = position(x, 0f, 1f)
@@ -206,23 +207,25 @@ internal fun DrawScope.drawSpectrogram(
     val backRight = position(1f, 0f, 1f)
     val frontLeft = position(-1f, 0f, DEPTH_MARGIN)
     val frontRight = position(1f, 0f, DEPTH_MARGIN)
-    val floorEdge = Path().apply {
-        moveTo(backLeft.x, backLeft.y)
-        lineTo(backRight.x, backRight.y)
-        lineTo(frontRight.x, frontRight.y)
-        lineTo(frontLeft.x, frontLeft.y)
-        close()
-    }
-    drawPath(floorEdge, axisColor, style = Stroke(1.dp.toPx()))
+    // Only the front edge stays: the side edges read as hard borders around the sheet.
+    drawPath(
+        Path().apply {
+            moveTo(frontLeft.x, frontLeft.y)
+            lineTo(frontRight.x, frontRight.y)
+        },
+        axisColor,
+        style = Stroke(1.dp.toPx()),
+    )
 
     listOf(10.0, 100.0, 1000.0, 10000.0).forEach { frequency ->
         val z = DEPTH_MARGIN + (1f - DEPTH_MARGIN) * SpectrumLayout.fractionForHz(frequency).toFloat()
         val anchor = position(1f, 0f, z)
         val label = if (frequency >= 10000) "10000" else if (frequency >= 1000) "1000" else frequency.toInt().toString()
+        // Pushed further out so the labels clear the right edge of the surface.
         drawText(
             textMeasurer = textMeasurer,
             text = label,
-            topLeft = Offset(anchor.x + 6.dp.toPx(), anchor.y - 6.dp.toPx()),
+            topLeft = Offset(anchor.x + 16.dp.toPx(), anchor.y - 6.dp.toPx()),
             style = labelStyle,
         )
     }
@@ -230,7 +233,7 @@ internal fun DrawScope.drawSpectrogram(
     drawText(
         textMeasurer = textMeasurer,
         text = "Hz",
-        topLeft = Offset(frontRight.x + 34.dp.toPx(), frontRight.y - 4.dp.toPx()),
+        topLeft = Offset(frontRight.x + 46.dp.toPx(), frontRight.y - 4.dp.toPx()),
         style = labelStyle,
     )
     val centre = position(0f, 0f, DEPTH_MARGIN)
