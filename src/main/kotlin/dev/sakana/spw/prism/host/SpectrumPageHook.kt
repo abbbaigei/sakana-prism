@@ -62,11 +62,11 @@ object SpectrumPageHook {
                     val content: @Composable BoxScope.() -> Unit = {
                         val scope = this
                         layer.renderContent(original, scope, currentComposer)
-                        AnimatedVisibility(
-                            visible = SpectrumHostState.visible,
-                            enter = fadeIn(tween(180)) + slideInHorizontally(tween(220)) { it / 14 },
-                            exit = fadeOut(tween(160)) + slideOutHorizontally(tween(200)) { it / 12 },
-                        ) {
+                        // Only compose the spectrum page while it is actually open. The old
+                        // AnimatedVisibility kept the page (and therefore the analysis
+                        // threads) alive until a fade-out finished, which never happens
+                        // once the host window stops producing frames.
+                        if (SpectrumHostState.visible) {
                             SpectrumPageView()
                         }
                     }
