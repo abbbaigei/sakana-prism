@@ -342,13 +342,13 @@ private fun SpectrumPanel(
                             area = androidx.compose.ui.geometry.Rect(
                                 6.dp.toPx(),
                                 6.dp.toPx(),
-                                w - 6.dp.toPx(),
+                                w - 46.dp.toPx(),
                                 plotH - 2.dp.toPx(),
                             ),
-                            spanSeconds = history.size * 0.033f,
                             textMeasurer = textMeasurer,
                             labelStyle = TextStyle(fontSize = 9.sp, color = Muted, fontFamily = FontFamily.Monospace),
-                            edgeColor = Line.copy(alpha = 0.75f),
+                            axisColor = Line.copy(alpha = 0.75f),
+                            ridgeColor = palette.spectrum.getOrElse(2) { theme.accent },
                         )
                     }
                     GraphMode.MIRROR -> {

@@ -34,7 +34,7 @@ object SpectrumSettings {
         private set
     var graphMode by mutableStateOf(GraphMode.BARS)
         private set
-    var waterfallView by mutableStateOf(WaterfallView.DIAGONAL)
+    var waterfallView by mutableStateOf(WaterfallView.FRONT_LOW)
         private set
     var barCount by mutableIntStateOf(160)
         private set
@@ -77,8 +77,8 @@ object SpectrumSettings {
             .getOrDefault(FrameMode.SIXTY)
         graphMode = runCatching { GraphMode.valueOf(config.get("graphMode", "BARS") ?: "BARS") }
             .getOrDefault(GraphMode.BARS)
-        waterfallView = runCatching { WaterfallView.valueOf(config.get("waterfallView", "DIAGONAL") ?: "DIAGONAL") }
-            .getOrDefault(WaterfallView.DIAGONAL)
+        waterfallView = runCatching { WaterfallView.valueOf(config.get("waterfallView", "FRONT_LOW") ?: "FRONT_LOW") }
+            .getOrDefault(WaterfallView.FRONT_LOW)
         barCount = (config.get("barCount", 160) ?: 160).coerceIn(32, 160)
         theme = runCatching { ThemePreset.valueOf(config.get("theme", "AURORA") ?: "AURORA") }
             .getOrDefault(ThemePreset.AURORA)
@@ -200,7 +200,7 @@ object SpectrumSettings {
     fun reset() {
         frameMode = FrameMode.SIXTY
         graphMode = GraphMode.BARS
-        waterfallView = WaterfallView.DIAGONAL
+        waterfallView = WaterfallView.FRONT_LOW
         barCount = 160
         theme = ThemePreset.AURORA
         colorMode = ColorMode.COVER

@@ -19,55 +19,68 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
-/** Frequency columns used for the 3D surface. */
-private const val COLUMNS = 96
+/** Frequency curtains drawn across the depth axis. */
+private const val CURTAINS = 96
 
-/** Frames kept in the depth buffer (also the history length the panel builds). */
+/** Horizontal colour samples per curtain, so time still shows through. */
+private const val SHADE_STEPS = 16
+
+/** How tall the amplitude ridges are, in slab space. */
+private const val RIDGE_HEIGHT = 0.20f
+
+/** Frames kept in the history buffer. */
 const val WATERFALL_ROWS = 46
 
 /**
- * Draws the spectrum history as a perspective spectrogram slab: frequency runs left to
- * right on a logarithmic axis, time recedes into the depth of the picture, and each band
- * is coloured by amplitude.
+ * Draws a classic 3D waterfall: time runs left to right, frequency recedes from the
+ * front edge (low) to the back (log-scaled high), and amplitude is drawn as height.
  *
- * A real camera is not needed here — the slab is a flat plane, so a yaw + pitch pair plus
- * a mild perspective divide is enough to get the look, and it keeps the draw loop cheap
- * (one filled quad per history row).
+ * Rendering is a stack of "curtains" — one filled ribbon per frequency bin, far to near,
+ * with its top edge following the amplitude over time. Opaque fills hide everything
+ * behind them except the ridges that poke up, which is what makes a waterfall read as a
+ * surface without paying for a full hidden-surface mesh.
  */
 internal fun DrawScope.drawWaterfall(
     history: List<FloatArray>,
     view: WaterfallView,
     palette: ArtworkPalette,
     area: Rect,
-    spanSeconds: Float,
     textMeasurer: TextMeasurer,
     labelStyle: TextStyle,
-    edgeColor: Color,
+    axisColor: Color,
+    ridgeColor: Color,
 ) {
     if (history.isEmpty() || area.width <= 0f || area.height <= 0f) return
+
+    val rows = history.size
+    val bins = history.first().size
+    if (bins == 0) return
+    val columns = min(CURTAINS, bins)
 
     val yaw = Math.toRadians(view.yaw.toDouble()).toFloat()
     val pitch = Math.toRadians(view.pitch.toDouble()).toFloat()
     val cosYaw = cos(yaw)
     val sinYaw = sin(yaw)
     val sinPitch = sin(pitch)
-    val focus = 2.4f
+    val cosPitch = cos(pitch)
+    val focus = 2.2f
+    val perspective = 1.1f
 
-    // Unit square in slab space: u = frequency (0..1), z = age (0 = now, 1 = oldest).
-    fun raw(u: Float, z: Float): Offset {
-        val x = u * 2f - 1f
+    // x = time (-1 oldest, +1 newest), z = frequency (0 = low, 1 = high), h = amplitude.
+    fun raw(x: Float, h: Float, z: Float): Offset {
         val xr = x * cosYaw + z * sinYaw
         val zr = -x * sinYaw + z * cosYaw
-        val k = focus / (focus + zr * 0.55f)
-        return Offset(xr * k, -zr * sinPitch * k)
+        val k = focus / (focus + zr * perspective)
+        return Offset(xr * k, (zr * sinPitch + h * cosPitch) * k)
     }
 
-    val corners = listOf(raw(0f, 0f), raw(1f, 0f), raw(0f, 1f), raw(1f, 1f))
+    // Fit the slab footprint (all four corners at rest height) into the plot area.
+    val corners = listOf(raw(-1f, 0f, 0f), raw(1f, 0f, 0f), raw(-1f, 0f, 1f), raw(1f, 0f, 1f))
     val minX = corners.minOf { it.x }
     val maxX = corners.maxOf { it.x }
     val minY = corners.minOf { it.y }
     val maxY = corners.maxOf { it.y }
-    val padding = 16.dp.toPx()
+    val padding = 18.dp.toPx()
     val scale = min(
         (area.width - padding * 2f) / max(maxX - minX, 0.0001f),
         (area.height - padding * 2f) / max(maxY - minY, 0.0001f),
@@ -77,92 +90,125 @@ internal fun DrawScope.drawWaterfall(
     val midX = (minX + maxX) / 2f
     val midY = (minY + maxY) / 2f
 
-    fun project(u: Float, z: Float): Offset {
-        val p = raw(u, z)
-        return Offset(centerX + (p.x - midX) * scale, centerY + (p.y - midY) * scale)
+    /** Screen position; the projected y is flipped so taller ridges go up. */
+    fun position(x: Float, h: Float, z: Float): Offset {
+        val p = raw(x, h, z)
+        return Offset(centerX + (p.x - midX) * scale, centerY - (p.y - midY) * scale)
     }
 
-    val rows = history.size
-    val columns = min(COLUMNS, history.first().size).coerceAtLeast(1)
-    val step = if (rows > 1) 1f / (rows - 1) else 1f
-    val band = (step * 1.06f).coerceAtLeast(0.02f)
+    fun timeX(index: Int): Float = if (rows > 1) 1f - 2f * index / (rows - 1) else 0f
 
-    // Far rows first so the near ones paint over them.
-    for (row in rows - 1 downTo 0) {
-        val values = history[row]
-        val zCenter = row * step
-        val z0 = (zCenter - band / 2f).coerceAtLeast(0f)
-        val z1 = (zCenter + band / 2f).coerceAtMost(1f)
-        if (z1 <= z0) continue
-        val stops = ArrayList<Color>(columns)
-        for (column in 0 until columns) {
-            val index = (column * values.size / columns).coerceIn(0, values.size - 1)
-            stops += cellColor(values[index], palette)
+    val dark = Color(0xFF070B12)
+
+    // Far (high frequency) curtains first; nearer ones paint over them.
+    for (column in columns - 1 downTo 0) {
+        val bin = (column * (bins - 1) / max(columns - 1, 1)).coerceIn(0, bins - 1)
+        val z = if (columns > 1) column.toFloat() / (columns - 1) else 0f
+
+        val ridge = Path()
+        var ampSum = 0f
+        for (index in 0 until rows) {
+            val amplitude = shaped(history[index].getOrElse(bin) { 0f })
+            ampSum += amplitude
+            val point = position(timeX(index), amplitude * RIDGE_HEIGHT, z)
+            if (index == 0) ridge.moveTo(point.x, point.y) else ridge.lineTo(point.x, point.y)
         }
-        val brush = Brush.linearGradient(stops, project(0f, zCenter), project(1f, zCenter))
-        val nearLeft = project(0f, z0)
-        val nearRight = project(1f, z0)
-        val farRight = project(1f, z1)
-        val farLeft = project(0f, z1)
-        val path = Path().apply {
-            moveTo(nearLeft.x, nearLeft.y)
-            lineTo(nearRight.x, nearRight.y)
-            lineTo(farRight.x, farRight.y)
-            lineTo(farLeft.x, farLeft.y)
-            close()
+
+        // One closed contour: ridge across, then the floor run back. Building it by hand
+        // (instead of addPath + lineTo) keeps the winding simple, otherwise the fill
+        // rule punches holes where the two runs overlap.
+        val body = Path()
+        for (index in 0 until rows) {
+            val amplitude = shaped(history[index].getOrElse(bin) { 0f })
+            val point = position(timeX(index), amplitude * RIDGE_HEIGHT, z)
+            if (index == 0) body.moveTo(point.x, point.y) else body.lineTo(point.x, point.y)
         }
-        drawPath(path, brush)
+        for (index in rows - 1 downTo 0) {
+            val floor = position(timeX(index), 0f, z)
+            body.lineTo(floor.x, floor.y)
+        }
+        body.close()
+
+        // Shade along time: average the amplitude into a handful of gradient stops.
+        val stops = ArrayList<Color>(SHADE_STEPS + 1)
+        for (step in 0..SHADE_STEPS) {
+            val from = step * rows / (SHADE_STEPS + 1)
+            val to = ((step + 1) * rows / (SHADE_STEPS + 1)).coerceAtLeast(from + 1)
+            var sum = 0f
+            var count = 0
+            for (index in from until min(to, rows)) {
+                sum += shaped(history[index].getOrElse(bin) { 0f })
+                count++
+            }
+            stops += curtainColor(if (count > 0) sum / count else 0f, palette, dark)
+        }
+        val start = position(-1f, 0f, z)
+        val end = position(1f, 0f, z)
+        drawPath(body, Brush.linearGradient(stops, start, end))
+        drawPath(ridge, ridgeColor.copy(alpha = 0.75f), style = Stroke(1f))
     }
 
-    // Slab outline: the front edge is the only one that stays visible.
-    val outline = Path().apply {
-        val a = project(0f, 0f)
-        val b = project(1f, 0f)
-        val c = project(1f, 1f)
-        val d = project(0f, 1f)
-        moveTo(a.x, a.y)
-        lineTo(b.x, b.y)
-        lineTo(c.x, c.y)
-        lineTo(d.x, d.y)
+    // Floor edges + frequency ticks on the right, time label under the front edge.
+    val backLeft = position(-1f, 0f, 1f)
+    val backRight = position(1f, 0f, 1f)
+    val frontLeft = position(-1f, 0f, 0f)
+    val frontRight = position(1f, 0f, 0f)
+    val floor = Path().apply {
+        moveTo(backLeft.x, backLeft.y)
+        lineTo(backRight.x, backRight.y)
+        lineTo(frontRight.x, frontRight.y)
+        lineTo(frontLeft.x, frontLeft.y)
         close()
     }
-    drawPath(outline, edgeColor, style = Stroke(1.dp.toPx()))
+    drawPath(floor, axisColor, style = Stroke(1.dp.toPx()))
 
-    // Frequency ticks along the front edge.
-    listOf(100.0, 1000.0, 10000.0).forEach { frequency ->
-        val fraction = SpectrumLayout.fractionForHz(frequency).toFloat()
-        val anchor = project(fraction, 0f)
-        val label = if (frequency >= 1000) "${(frequency / 1000).toInt()}k" else frequency.toInt().toString()
+    listOf(10.0, 100.0, 1000.0, 10000.0).forEach { frequency ->
+        val z = SpectrumLayout.fractionForHz(frequency).toFloat()
+        val anchor = position(1f, 0f, z)
+        val label = when {
+            frequency >= 10000 -> "10000"
+            frequency >= 1000 -> "1000"
+            else -> frequency.toInt().toString()
+        }
         drawText(
             textMeasurer = textMeasurer,
             text = label,
-            topLeft = Offset(anchor.x - 7.dp.toPx(), anchor.y + 5.dp.toPx()),
+            topLeft = Offset(anchor.x + 6.dp.toPx(), anchor.y - 6.dp.toPx()),
             style = labelStyle,
         )
     }
-    if (spanSeconds > 0.2f) {
-        val anchor = project(0f, 1f)
+    drawText(
+        textMeasurer = textMeasurer,
+        text = "Hz",
+        topLeft = Offset(frontRight.x + 6.dp.toPx(), frontRight.y - 20.dp.toPx()),
+        style = labelStyle,
+    )
+    val centre = position(0f, 0f, 0f)
+    drawText(
+        textMeasurer = textMeasurer,
+        text = "s",
+        topLeft = Offset(centre.x - 2.dp.toPx(), centre.y + 8.dp.toPx()),
+        style = labelStyle,
+    )
+    if (rows > 1) {
+        val span = (rows - 1) * 0.033f
         drawText(
             textMeasurer = textMeasurer,
-            text = "${"%.1f".format(spanSeconds)} s",
-            topLeft = Offset(anchor.x - 4.dp.toPx(), anchor.y - 16.dp.toPx()),
+            text = "${"%.1f".format(span)} s",
+            topLeft = Offset(frontLeft.x + 2.dp.toPx(), frontLeft.y + 8.dp.toPx()),
             style = labelStyle,
         )
     }
 }
 
-/** Dark panel at silence, palette at full scale, with a brighter top end. */
-private fun cellColor(value: Float, palette: ArtworkPalette): Color {
-    // Music lives well above -60 dBFS, so stretch the useful part of the scale;
-    // otherwise nearly every cell lands on the bright end and the surface goes flat.
-    val normalised = ((value - 0.30f) / 0.62f).coerceIn(0f, 1f)
-    val level = normalised * normalised * 0.35f + normalised * 0.65f
-    val dark = Color(0xFF070B12)
+/** Stretch the useful part of the dBFS scale, like the flat graph modes do. */
+private fun shaped(value: Float): Float = ((value - 0.30f) / 0.62f).coerceIn(0f, 1f)
+
+/** Dark floor to palette at full amplitude; kept dim so ridges carry the contrast. */
+private fun curtainColor(amplitude: Float, palette: ArtworkPalette, dark: Color): Color {
+    val level = shaped(amplitude)
     val low = palette.spectrum.getOrElse(0) { Color(0xFF4DD8C4) }
     val high = palette.spectrum.getOrElse(palette.spectrum.lastIndex) { low }
-    return if (level < 0.55f) {
-        lerp(dark, low, level / 0.55f)
-    } else {
-        lerp(low, high, (level - 0.55f) / 0.45f)
-    }
+    val base = if (level < 0.5f) lerp(dark, low, level / 0.5f) else lerp(low, high, (level - 0.5f) / 0.5f)
+    return lerp(dark, base, 0.38f)
 }
