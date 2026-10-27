@@ -241,15 +241,17 @@ internal fun DrawScope.drawSpectrogram(
         topLeft = Offset(frontRight.x + 46.dp.toPx(), frontRight.y - 4.dp.toPx()),
         style = labelStyle,
     )
+    // The sheet runs from the newest frame back to `span` seconds, so its middle is half
+    // of that — label the centre tick accordingly instead of just "s".
+    val span = (rows - 1) * 0.033f
     val centre = position(0f, 0f, DEPTH_MARGIN)
     drawText(
         textMeasurer = textMeasurer,
-        text = "s",
-        topLeft = Offset(centre.x - 2.dp.toPx(), centre.y + 8.dp.toPx()),
+        text = "${"%.1f".format(span / 2f)} s",
+        topLeft = Offset(centre.x - 8.dp.toPx(), centre.y + 8.dp.toPx()),
         style = labelStyle,
     )
     if (rows > 1) {
-        val span = (rows - 1) * 0.033f
         drawText(
             textMeasurer = textMeasurer,
             text = "${"%.1f".format(span)} s",
