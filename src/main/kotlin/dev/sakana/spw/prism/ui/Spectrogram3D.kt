@@ -24,7 +24,7 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 /** Frequency columns of the mesh (the analysis grid has 512 bins). */
-private const val MESH_COLS = 96
+private const val MESH_COLS = 128
 
 /** How tall the amplitude peaks are, in slab space. */
 private const val RIDGE_HEIGHT = 0.20f
@@ -184,7 +184,7 @@ internal fun DrawScope.drawSpectrogram(
             val point = position(timeX(i), level * RIDGE_HEIGHT, depthOf(ridgeColumn))
             if (i == 0) ridgePath.moveTo(point.x, point.y) else ridgePath.lineTo(point.x, point.y)
         }
-        ridgeColumn -= 2
+        ridgeColumn -= 1
     }
     // Halo is back: two soft passes under the crisp line. Kept at two instead of three
     // because thick strokes over a path this long are the most expensive thing here.
