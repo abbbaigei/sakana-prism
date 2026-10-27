@@ -468,7 +468,7 @@ private fun SettingsRail(
                 }
             }
         }
-        if (mode == GraphMode.WATERFALL) {
+        if (showGraphModes && mode == GraphMode.WATERFALL) {
             Column {
                 Text("声谱图视角", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
@@ -501,25 +501,28 @@ private fun SettingsRail(
                 }
             }
         }
-        Column {
-            Text("频段数", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(64, 96, 128, 160).forEach { n ->
-                    Chip(n.toString(), SpectrumSettings.barCount == n, theme.accent) {
-                        SpectrumSettings.chooseBarCount(n)
+        // Band count and the low-band FFT choice also only shape the spectrum page.
+        if (showGraphModes) {
+            Column {
+                Text("频段数", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(64, 96, 128, 160).forEach { n ->
+                        Chip(n.toString(), SpectrumSettings.barCount == n, theme.accent) {
+                            SpectrumSettings.chooseBarCount(n)
+                        }
                     }
                 }
-            }
-            Spacer(Modifier.height(6.dp))
-            Text("16384 点 FFT · 低频 32k", fontSize = 8.sp, color = Muted)
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Chip("低频 16k", !SpectrumSettings.lowFftLarge, theme.accent) {
-                    SpectrumSettings.updateLowFftLarge(false)
-                }
-                Chip("低频 32k", SpectrumSettings.lowFftLarge, theme.accent) {
-                    SpectrumSettings.updateLowFftLarge(true)
+                Spacer(Modifier.height(6.dp))
+                Text("16384 点 FFT · 低频 32k", fontSize = 8.sp, color = Muted)
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Chip("低频 16k", !SpectrumSettings.lowFftLarge, theme.accent) {
+                        SpectrumSettings.updateLowFftLarge(false)
+                    }
+                    Chip("低频 32k", SpectrumSettings.lowFftLarge, theme.accent) {
+                        SpectrumSettings.updateLowFftLarge(true)
+                    }
                 }
             }
         }
