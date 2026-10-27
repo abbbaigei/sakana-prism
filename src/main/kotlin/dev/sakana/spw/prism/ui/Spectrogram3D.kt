@@ -24,7 +24,7 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 /** Frequency columns of the mesh (the analysis grid has 512 bins). */
-private const val MESH_COLS = 128
+private const val MESH_COLS = 96
 
 /** How tall the amplitude peaks are, in slab space. */
 private const val RIDGE_HEIGHT = 0.20f
@@ -183,17 +183,11 @@ internal fun DrawScope.drawSpectrogram(
             val point = position(timeX(i), level * RIDGE_HEIGHT, depthOf(ridgeColumn))
             if (i == 0) ridgePath.moveTo(point.x, point.y) else ridgePath.lineTo(point.x, point.y)
         }
-        ridgeColumn -= 2
+        ridgeColumn -= 3
     }
-    val glowSteps = floatArrayOf(6.5f, 3.2f)
-    val glowAlphas = floatArrayOf(0.05f, 0.10f)
-    for (step in glowSteps.indices) {
-        drawPath(
-            ridgePath,
-            Color(0xFFBFE4FF).copy(alpha = glowAlphas[step]),
-            style = Stroke(glowSteps[step].dp.toPx()),
-        )
-    }
+    // One thin halo pass instead of two fat ones: thick strokes over a path this long are
+    // by far the most expensive thing on a software renderer.
+    drawPath(ridgePath, Color(0xFFBFE4FF).copy(alpha = 0.08f), style = Stroke(2.4.dp.toPx()))
     drawPath(ridgePath, Color(0x99E8F1FA), style = Stroke(0.9.dp.toPx()))
 
     // Axes.
