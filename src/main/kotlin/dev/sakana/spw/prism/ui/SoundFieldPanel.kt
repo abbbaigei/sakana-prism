@@ -299,12 +299,13 @@ fun SoundFieldPanel(
                         val lx = cx + ux * radius * 1.075f
                         val ly = bottom - uy * radius * 1.075f
                         if (mode != SoundFieldMode.REFERENCE) {
-                            // Only the direction-neutral labels go in yet: the middle spoke
-                            // and the two anti-phase ends. Whether the +pan side is "L" or
-                            // "R" is still under test.
+                            // pan -0.5 is the L-only speaker (left of centre), +0.5 the R-only
+                            // one, ±1 is anti-phase in either channel.
                             val tick = when {
                                 pan == 0f -> "中"
                                 pan == -1f || pan == 1f -> "反相"
+                                pan == -0.5f -> "L"
+                                pan == 0.5f -> "R"
                                 else -> null
                             }
                             if (tick != null) {
@@ -560,6 +561,18 @@ fun SoundFieldPanel(
 private const val PAN_ANGLE_HALF_SPAN = 0.5
 private const val PAN_ANGLE_SPAN = PI * PAN_ANGLE_HALF_SPAN
 
+/**
+ * Screen-side convention: the left half of the plot is the L channel, the right half is R.
+ * side = (L - R)/2 is positive when L is louder, so the sign is flipped before it becomes a
+ * pan value. Every polar view goes through [panOf], so the particles, the level bins, the
+ * reference cloud and the tick spokes cannot disagree.
+ */
+private const val PAN_SIGN = -1f
+
+/** pan from a sample pair's side component; +pan draws on the right (R louder). */
+private fun panOf(side: Float, energy: Float): Float =
+    if (energy > 1e-6f) (PAN_SIGN * side / energy).coerceIn(-1f, 1f) else 0f
+
 /** Pan (-1..1) → polar angle in radians, measured from the +X axis. */
 private fun polarAngle(pan: Float): Float =
     (PI / 2.0 - pan * PAN_ANGLE_SPAN).toFloat()
@@ -622,7 +635,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarCloud(
         // Normalize stereo position by level. Using side directly makes the
         // angular span shrink with radius and creates a fixed funnel near the
         // centre (|side| <= energy). Radius and angle must be independent.
-        val pan = if (rawEnergy > 1e-6f) (side / rawEnergy).coerceIn(-1f, 1f) else 0f
+        val pan = panOf(side, rawEnergy)
         val angle = polarAngle(pan)
         // Linear amplitude: 1.0 (= 0 dBFS) lands exactly on the outer ring.
         val distance = radius * energy
@@ -666,7 +679,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarLevel(
         val mid = (l + r) * 0.5f
         val side = (l - r) * 0.5f
         val energy = min(1f, abs(mid) + abs(side))
-        val pan = if (energy > 1e-6f) (side / energy).coerceIn(-1f, 1f) else 0f
+        val pan = panOf(side, energy)
         val bin = ((pan + 1f) * 0.5f * (binCount - 1)).roundToInt().coerceIn(0, binCount - 1)
         if (energy > levels[bin]) levels[bin] = energy
         counts[bin]++
@@ -737,7 +750,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawReferenceCloud(
         val rawEnergy = abs(mid) + abs(side)
         val energy = min(1f, rawEnergy / scale)
         if (energy < 0.002f) continue
-        val pan = if (rawEnergy > 1e-6f) (side / rawEnergy).coerceIn(-1f, 1f) else 0f
+        val pan = panOf(side, rawEnergy)
         val angle = polarAngle(pan)
         val distance = radius * energy
         val alpha = ((0.018f + energy * 0.74f) * opacity).coerceIn(0f, 0.9f)

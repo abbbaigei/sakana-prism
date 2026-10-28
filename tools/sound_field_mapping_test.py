@@ -40,7 +40,8 @@ def map_analytic(l: float, r: float, divisor: float = 1.0) -> tuple[float, float
     side = (l - r) * 0.5
     raw_energy = abs(mid) + abs(side)
     energy = min(1.0, raw_energy / max(divisor, 1e-4))
-    pan = max(-1.0, min(1.0, side / raw_energy)) if raw_energy > 1e-6 else 0.0
+    # Screen convention: left half is the L channel, so the side sign is flipped.
+    pan = max(-1.0, min(1.0, -side / raw_energy)) if raw_energy > 1e-6 else 0.0
     angle = polar_angle(pan)
     # Linear amplitude: distance = radius * energy.
     return math.degrees(math.pi / 2.0 - angle), energy, energy
@@ -52,7 +53,8 @@ def map_point(l: float, r: float, divisor: float = 1.0) -> list[tuple[float, flo
     side = (l - r) * 0.5
     raw_energy = abs(mid) + abs(side)
     energy = min(1.0, raw_energy / max(divisor, 1e-4))
-    pan = max(-1.0, min(1.0, side / raw_energy)) if raw_energy > 1e-6 else 0.0
+    # Screen convention: left half is the L channel, so the side sign is flipped.
+    pan = max(-1.0, min(1.0, -side / raw_energy)) if raw_energy > 1e-6 else 0.0
     angle = polar_angle(pan)
     distance = R * energy
     out: list[tuple[float, float]] = []
@@ -98,14 +100,15 @@ def main() -> None:
 
     print(f"uniform full-scale max radius / R = {max_radius_ratio(points):.4f}")
 
-    # Angle check. With pan = side / (|mid| + |side|) the two extremes are:
-    #   anti-phase  L=1, R=-1  -> pan = +1 -> +90 deg
-    #   one-sided   L=1, R=0   -> pan = +0.5 -> +45 deg
+    # Angle check. pan = -side / (|mid| + |side|) (screen convention):
+    #   L only  L=1, R=0   -> pan = -0.5 -> -45 deg (left half)
+    #   R only  L=0, R=1   -> pan = +0.5 -> +45 deg (right half)
+    #   anti-phase          -> pan = ±1   -> ±90 deg
     for l, r, expected, why in (
-        (1.0, -1.0, 90.0, "anti-phase full scale"),
-        (-1.0, 1.0, -90.0, "anti-phase full scale"),
-        (1.0, 0.0, 45.0, "one-sided full scale"),
-        (0.0, 1.0, -45.0, "one-sided full scale"),
+        (1.0, -1.0, -90.0, "anti-phase, L positive"),
+        (-1.0, 1.0, 90.0, "anti-phase, R positive"),
+        (1.0, 0.0, -45.0, "L only"),
+        (0.0, 1.0, 45.0, "R only"),
     ):
         deg, ratio, _ = map_analytic(l, r)
         print(f"L={l:+.0f} R={r:+.0f} ({why}): angle = {deg:+.4f} deg "
