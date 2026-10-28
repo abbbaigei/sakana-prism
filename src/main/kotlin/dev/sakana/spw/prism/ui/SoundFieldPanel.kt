@@ -282,12 +282,16 @@ fun SoundFieldPanel(
                         )
                     }
                     val labelStyle = TextStyle(fontSize = 11.sp, color = muted, fontFamily = FontFamily.Monospace)
-                    for (deg in listOf(-90, -60, -30, 0, 30, 60, 90)) {
-                        val theta = (90.0 - deg) * PI / 180.0
+                    // Radial ticks are placed by pan, not by fixed degrees: the spokes are
+                    // pan -1 / -0.5 / 0 / +0.5 / +1 and the angle comes from polarAngle(),
+                    // i.e. the very same constant the particles use, so the grid can never
+                    // drift away from the data.
+                    for (pan in listOf(-1f, -0.5f, 0f, 0.5f, 1f)) {
+                        val theta = polarAngle(pan).toDouble()
                         val ux = cos(theta).toFloat()
                         val uy = sin(theta).toFloat()
                         drawLine(
-                            line.copy(alpha = if (deg == 0) 0.55f else 0.32f),
+                            line.copy(alpha = if (pan == 0f) 0.55f else 0.32f),
                             Offset(cx, bottom),
                             Offset(cx + ux * radius, bottom - uy * radius),
                             0.7.dp.toPx(),
@@ -295,12 +299,22 @@ fun SoundFieldPanel(
                         val lx = cx + ux * radius * 1.075f
                         val ly = bottom - uy * radius * 1.075f
                         if (mode != SoundFieldMode.REFERENCE) {
-                            drawText(
-                                textMeasurer = textMeasurer,
-                                text = "$deg°",
-                                topLeft = Offset(lx - 10.dp.toPx(), ly - 9.dp.toPx()),
-                                style = labelStyle,
-                            )
+                            // Only the direction-neutral labels go in yet: the middle spoke
+                            // and the two anti-phase ends. Whether the +pan side is "L" or
+                            // "R" is still under test.
+                            val tick = when {
+                                pan == 0f -> "中"
+                                pan == -1f || pan == 1f -> "反相"
+                                else -> null
+                            }
+                            if (tick != null) {
+                                drawText(
+                                    textMeasurer = textMeasurer,
+                                    text = tick,
+                                    topLeft = Offset(lx - 14.dp.toPx(), ly - 9.dp.toPx()),
+                                    style = labelStyle,
+                                )
+                            }
                         }
                     }
                     if (mode == SoundFieldMode.REFERENCE) {
@@ -538,14 +552,17 @@ fun SoundFieldPanel(
 }
 
 /**
- * Angular half-span of the polar plot: pan (-1..1) maps onto -90°..+90° so a hard-panned
- * sample sits exactly on the ±90° tick. Every pan→angle conversion in this file uses it.
+ * Angular span of the polar plot. pan ±1 rotates the spoke by ±[PAN_ANGLE_SPAN], which is
+ * currently ±90° (half-span 0.5) after the earlier "ticks must be exact" request. Every
+ * pan→angle conversion in this file goes through [polarAngle], so this one constant moves
+ * the particles, the level envelope, the reference cloud and the tick spokes together.
  */
-private const val POLAR_ANGLE_HALF_SPAN = 0.5
+private const val PAN_ANGLE_HALF_SPAN = 0.5
+private const val PAN_ANGLE_SPAN = PI * PAN_ANGLE_HALF_SPAN
 
 /** Pan (-1..1) → polar angle in radians, measured from the +X axis. */
 private fun polarAngle(pan: Float): Float =
-    (PI / 2.0 - pan * PI * POLAR_ANGLE_HALF_SPAN).toFloat()
+    (PI / 2.0 - pan * PAN_ANGLE_SPAN).toFloat()
 
 /** Lowest divisor 峰值自适应 will use, so silence does not amplify noise to full scale. */
 private const val ADAPTIVE_PEAK_FLOOR = 0.25f
