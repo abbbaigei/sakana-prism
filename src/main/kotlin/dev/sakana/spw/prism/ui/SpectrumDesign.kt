@@ -463,12 +463,12 @@ private fun Footer(controller: SpectrumController, theme: ThemePreset, metrics: 
         while (stamps.isNotEmpty() && nowNs - stamps.first() > 1_000_000_000L) stamps.removeFirst()
         Text("${stamps.size} fps  ·  ", fontSize = 9.sp, color = Muted)
         Text(
-            "绘制 ${"%.1f".format(metrics.drawMs)} ms  ·  分析 ${"%.1f".format(controller.analyzeMs)} ms",
+            Strings["footer.draw"] + " ${"%.1f".format(metrics.drawMs)} ms  ·  " + Strings["footer.analyze"] + " ${"%.1f".format(controller.analyzeMs)} ms",
             fontSize = 9.sp,
             color = Muted,
         )
         Spacer(Modifier.width(10.dp))
-        Text("${controller.sampleRate / 1000.0} kHz  ·  16384 窗口", fontSize = 9.sp, color = Muted)
+        Text("${controller.sampleRate / 1000.0} kHz  ·  16384 " + Strings["footer.window"], fontSize = 9.sp, color = Muted)
         Spacer(Modifier.width(12.dp))
         Text(
             "v${BuildInfo.version}",
@@ -603,19 +603,19 @@ private fun SettingsRail(
             }
             if (SpectrumSettings.colorMode == ColorMode.CUSTOM) {
                 Spacer(Modifier.height(8.dp))
-                ColorField("频谱 A", SpectrumSettings.customSpectrumA, theme.accent) {
+                ColorField(Strings["color.spectrumA"], SpectrumSettings.customSpectrumA, theme.accent) {
                     SpectrumSettings.updateCustomSpectrumA(it)
                 }
                 Spacer(Modifier.height(5.dp))
-                ColorField("频谱 B", SpectrumSettings.customSpectrumB, theme.accent) {
+                ColorField(Strings["color.spectrumB"], SpectrumSettings.customSpectrumB, theme.accent) {
                     SpectrumSettings.updateCustomSpectrumB(it)
                 }
                 Spacer(Modifier.height(5.dp))
-                ColorField("声场 L", SpectrumSettings.customLeft, theme.accent) {
+                ColorField(Strings["color.fieldL"], SpectrumSettings.customLeft, theme.accent) {
                     SpectrumSettings.updateCustomLeft(it)
                 }
                 Spacer(Modifier.height(5.dp))
-                ColorField("声场 R", SpectrumSettings.customRight, theme.accent) {
+                ColorField(Strings["color.fieldR"], SpectrumSettings.customRight, theme.accent) {
                     SpectrumSettings.updateCustomRight(it)
                 }
             }
@@ -668,21 +668,24 @@ private fun SettingsRail(
             Text(Strings["rail.language"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             // Native names only: a user who cannot read the current UI language still
-            // recognises their own.
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                AppLanguage.entries.take(5).forEach { item ->
-                    Chip(item.nativeName, SpectrumSettings.language == item, theme.accent) {
-                        SpectrumSettings.chooseLanguage(item)
+            // recognises their own. Three per row with equal width, because long names
+            // overflow a content-sized chip inside the 254dp rail.
+            AppLanguage.entries.chunked(3).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    row.forEach { item ->
+                        Chip(
+                            label = item.nativeName,
+                            selected = SpectrumSettings.language == item,
+                            accent = theme.accent,
+                            modifier = Modifier.weight(1f),
+                        ) { SpectrumSettings.chooseLanguage(item) }
                     }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
-            }
-            Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                AppLanguage.entries.drop(5).forEach { item ->
-                    Chip(item.nativeName, SpectrumSettings.language == item, theme.accent) {
-                        SpectrumSettings.chooseLanguage(item)
-                    }
-                }
+                Spacer(Modifier.height(6.dp))
             }
         }
         Chip(Strings["rail.reset"], false, theme.accent) {
@@ -723,15 +726,21 @@ private fun ColorField(label: String, value: String, accent: Color, onValue: (St
 }
 
 @Composable
-private fun Chip(label: String, selected: Boolean, accent: Color = Teal, onClick: () -> Unit) {
+private fun Chip(
+    label: String,
+    selected: Boolean,
+    accent: Color = Teal,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     Box(
-        Modifier
+        modifier
             .border(1.dp, if (selected) accent.copy(alpha = .75f) else Line, RoundedCornerShape(7.dp))
             .background(if (selected) accent.copy(alpha = .12f) else Color.Transparent, RoundedCornerShape(7.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
-        Text(label, fontSize = 9.sp, color = if (selected) accent else Muted)
+        Text(label, fontSize = 9.sp, color = if (selected) accent else Muted, maxLines = 1)
     }
 }
 

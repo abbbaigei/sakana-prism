@@ -42,6 +42,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.sakana.spw.prism.preview.SpectrumController
+import dev.sakana.spw.prism.i18n.Strings
 import dev.sakana.spw.prism.settings.SpectrumSettings
 import kotlin.math.PI
 import kotlin.math.abs
@@ -152,15 +153,15 @@ fun SoundFieldPanel(
                     fontSize = 18.sp, color = Color(0xFFF0F5FB), letterSpacing = 0.8.sp,
                 )
                 Row(Modifier.align(Alignment.CenterEnd).padding(end = 64.dp)) {
-                    Text("设置", modifier = Modifier.clickable(onClick = onSettings).padding(horizontal = 5.dp, vertical = 6.dp), fontSize = 9.sp, color = muted)
-                    Text("扩展", modifier = Modifier.clickable(onClick = onExpand).padding(horizontal = 5.dp, vertical = 6.dp), fontSize = 9.sp, color = muted)
+                    Text(Strings["field.settings"], modifier = Modifier.clickable(onClick = onSettings).padding(horizontal = 5.dp, vertical = 6.dp), fontSize = 9.sp, color = muted)
+                    Text(Strings["field.expand"], modifier = Modifier.clickable(onClick = onExpand).padding(horizontal = 5.dp, vertical = 6.dp), fontSize = 9.sp, color = muted)
                 }
             }
         } else {
             Row(Modifier.fillMaxWidth().padding(end = 64.dp), verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) {
                     Text("声场", fontSize = 22.sp, color = Color(0xFFF0F5FB), letterSpacing = 1.sp)
-                    Text("立体声场 / STEREO FIELD VISUALIZATION", fontSize = 8.sp, color = muted, letterSpacing = 1.2.sp)
+                    Text(Strings["field.tagline"], fontSize = 8.sp, color = muted, letterSpacing = 1.2.sp)
                 }
                 Text(
                     "设置",
@@ -175,9 +176,9 @@ fun SoundFieldPanel(
             }
             Spacer(Modifier.height(5.dp))
             Text(
-                "宽度 ${"%.0f".format(controller.stereoWidth * 100f)}%   ·   " +
-                    "相关 ${"%+.2f".format(controller.correlation)}   ·   " +
-                    "峰值 ${"%.1f".format(db(max(controller.leftPeak, controller.rightPeak)))} dBFS" +
+                Strings["field.width"] + " ${"%.0f".format(controller.stereoWidth * 100f)}%   ·   " +
+                    Strings["field.corr"] + " ${"%+.2f".format(controller.correlation)}   ·   " +
+                    Strings["rail.peaks"] + " ${"%.1f".format(db(max(controller.leftPeak, controller.rightPeak)))} dBFS" +
                     gainSuffix(controller),
                 fontSize = 10.sp, color = muted, fontFamily = FontFamily.Monospace,
             )
@@ -186,12 +187,22 @@ fun SoundFieldPanel(
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SoundFieldMode.entries.filter { it != SoundFieldMode.REFERENCE }.forEach { item ->
-                ModeChip(item.label, item == mode, leftColor) { mode = item }
+                ModeChip(
+                        Strings[
+                            when (item) {
+                                SoundFieldMode.POLAR_SAMPLE -> "field.sample"
+                                SoundFieldMode.POLAR_LEVEL -> "field.level"
+                                SoundFieldMode.LISSAJOUS -> "field.lissa"
+                                else -> "field.levels"
+                            },
+                        ],
+                        item == mode, leftColor,
+                    ) { mode = item }
             }
         }
         if (!controller.stereo) {
             Text(
-                "单声道源 · L/R 复制",
+                Strings["field.mono"],
                 fontSize = 8.sp, color = Color(0xFFFFC46B),
                 modifier = Modifier.padding(top = 3.dp),
             )
@@ -199,14 +210,14 @@ fun SoundFieldPanel(
         if (mode == SoundFieldMode.POLAR_SAMPLE) {
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("密度", fontSize = 12.sp, color = muted)
+                Text(Strings["field.density"], fontSize = 12.sp, color = muted)
             Spacer(Modifier.width(5.dp))
             listOf(96, 192, 384, 768).forEach { value ->
                 SmallChip(value.toString(), density == value, leftColor) { density = value }
                 Spacer(Modifier.width(3.dp))
             }
             Spacer(Modifier.width(10.dp))
-            Text("残影", fontSize = 12.sp, color = muted)
+            Text(Strings["field.trail"], fontSize = 12.sp, color = muted)
             Spacer(Modifier.width(3.dp))
             listOf(0, 3, 6).forEach { value ->
                     SmallChip(if (value == 0) "关" else "$value", trail == value, leftColor) { trail = value }
@@ -533,10 +544,10 @@ fun SoundFieldPanel(
         val rightValue = if (fsUnit) "%.2f".format(controller.rightPeak) else "%.1f".format(db(controller.rightRms))
         val hint = when (mode) {
             SoundFieldMode.POLAR_SAMPLE ->
-                if (adaptive) "角度° · 半径 相对峰值" else "角度° · 半径 FS"
+                if (adaptive) Strings["field.hintAdaptive"] else Strings["field.hintFs"]
             SoundFieldMode.POLAR_LEVEL -> "RMS dBFS"
             SoundFieldMode.LISSAJOUS -> "X=L / Y=R · FS"
-            SoundFieldMode.LEVELS -> "峰值 / 保持 / RMS"
+            SoundFieldMode.LEVELS -> Strings["field.hintLevels"]
             SoundFieldMode.REFERENCE -> ""
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -844,12 +855,12 @@ private fun dbNorm(db: Float): Float = ((db + 96f) / 96f).coerceIn(0f, 1f)
  * read against what the track was mastered to instead of only its current level.
  */
 private fun gainSuffix(controller: SpectrumController): String {
-    val tags = controller.loudness ?: return "   ·   ReplayGain 无"
+    val tags = controller.loudness ?: return "   ·   " + Strings["field.noRg"]
     val gain = tags.gainDb
     val parts = buildList {
-        if (gain != null) add("增益 ${"%+.1f".format(gain)} dB")
-        tags.trackPeak?.let { add("真峰值 ${"%.2f".format(it)}") }
-        if (gain == null) tags.albumGainDb?.let { add("专辑增益 ${"%+.1f".format(it)} dB") }
+        if (gain != null) add(Strings["field.gain"] + " ${"%+.1f".format(gain)} dB")
+        tags.trackPeak?.let { add(Strings["field.truePeak"] + " ${"%.2f".format(it)}") }
+        if (gain == null) tags.albumGainDb?.let { add(Strings["field.albumGain"] + " ${"%+.1f".format(it)} dB") }
     }
-    return if (parts.isEmpty()) "   ·   ReplayGain 无" else "   ·   " + parts.joinToString(" · ")
+    return if (parts.isEmpty()) "   ·   " + Strings["field.noRg"] else "   ·   " + parts.joinToString(" · ")
 }
