@@ -38,6 +38,11 @@ compose.desktop {
             vendor = "Sakana"
             // Keep the runtime lean; the analyser needs no crypto or JDBC modules.
             modules("java.instrument", "java.management", "jdk.unsupported")
+            windows {
+                iconFile.set(project.file("assets/icon.ico"))
+                menu = true
+                shortcut = true
+            }
         }
     }
 }

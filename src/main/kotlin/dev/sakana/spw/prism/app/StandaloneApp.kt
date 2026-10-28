@@ -25,6 +25,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.res.loadImageBitmap
+import androidx.compose.ui.res.useResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -99,9 +102,15 @@ fun main(args: Array<String>) = application {
         }
     }
 
+    val appIcon = remember {
+        runCatching {
+            useResource("icons/prism-app.png") { BitmapPainter(loadImageBitmap(it)) }
+        }.getOrNull()
+    }
     Window(
         onCloseRequest = { player.close(); exitApplication() },
         title = "Sakana Prism",
+        icon = appIcon,
         state = rememberWindowState(width = 1180.dp, height = 780.dp),
     ) {
         // AWT drop target: Compose's external-drag API is still experimental, this is stable.
