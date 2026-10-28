@@ -15,6 +15,7 @@ import dev.sakana.spw.prism.audio.LoudnessTags
 import dev.sakana.spw.prism.audio.SpectrumLayout
 import dev.sakana.spw.prism.settings.SpectrumSettings
 import dev.sakana.spw.prism.ui.SpectrumDesign
+import java.util.concurrent.locks.LockSupport
 import java.awt.GraphicsEnvironment
 import java.nio.file.Files
 import java.nio.file.Path
@@ -23,6 +24,9 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
 
 private const val UNFOCUSED_FPS = 15
+
+/** How long (ns) before each deadline the loop spins instead of parking. */
+private const val SPIN_WINDOW_NS = 2_000_000L
 enum class FrameMode(val label: String) {
     LOW("30"),
     SIXTY("60"),
@@ -262,16 +266,20 @@ class SpectrumController(
     }
 
     /**
-     * Waits for [deadline] without burning a core. The previous version spun with
-     * `onSpinWait` for the last ~4 ms of every frame, which cost roughly half a core at
-     * 60 fps across the two worker threads and made the UI feel sluggish.
+     * Waits for [deadline]. parkNanos overshoots badly on Windows (the shell timer quantum
+     * is ~15.6 ms, which dropped the frame rate to 16), so the coarse part uses sleep() and
+     * only the last couple of milliseconds spin. That is a fraction of the old 4 ms-per-frame
+     * busy wait while keeping 60 fps.
      */
     private fun waitUntil(deadline: Long): Boolean {
         while (running.get()) {
             val remaining = deadline - System.nanoTime()
             if (remaining <= 0L) return true
-            java.util.concurrent.locks.LockSupport.parkNanos(remaining - 1_000_000L)
-            if (Thread.interrupted()) return false
+            if (remaining > SPIN_WINDOW_NS) {
+                Thread.sleep((remaining - SPIN_WINDOW_NS) / 1_000_000L)
+            } else {
+                Thread.onSpinWait()
+            }
         }
         return false
     }

@@ -142,6 +142,8 @@ fun main(args: Array<String>) = application {
         }
 
         Column(Modifier.fillMaxSize().background(Panel)) {
+            // Always available: dropping works, but a visible button is what people look for.
+            TopBar(player.trackPath?.name) { chooseFile(window)?.let(::load) }
             Box(Modifier.fillMaxWidth().weight(1f)) {
                 val path = trackPath
                 if (path == null) {
@@ -155,6 +157,35 @@ fun main(args: Array<String>) = application {
             }
             Transport(player)
         }
+    }
+}
+
+@Composable
+private fun TopBar(trackName: String?, onOpen: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth()
+            .height(44.dp)
+            .background(BarBackground)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .height(26.dp)
+                .background(Teal.copy(alpha = 0.14f), RoundedCornerShape(50))
+                .clickable(onClick = onOpen)
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("打开文件 · Open file", fontSize = 11.sp, color = Teal)
+        }
+        Spacer(Modifier.width(14.dp))
+        Text(
+            trackName ?: "把音频文件拖进窗口，或点左上角打开 · Drop a file or use Open file",
+            fontSize = 10.sp,
+            color = Muted,
+            maxLines = 1,
+        )
     }
 }
 
