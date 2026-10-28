@@ -708,11 +708,11 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarCloud(
         val aR = ((0.018f + abs(r) * 0.58f) * opacity).coerceIn(0f, 0.82f)
         if (aL > 0.008f) {
             buffer.add(0, aL, cx + cos(angle + 0.018f) * distance, bottom - sin(angle + 0.018f) * distance)
-            sizeSum[0] += 0.65f + abs(l) * 2.0f
+            sizeSum[0] += 1.25f + abs(l) * 3.4f
         }
         if (aR > 0.008f) {
             buffer.add(1, aR, cx + cos(angle - 0.018f) * distance, bottom - sin(angle - 0.018f) * distance)
-            sizeSum[1] += 0.65f + abs(r) * 2.0f
+            sizeSum[1] += 1.25f + abs(r) * 3.4f
         }
     }
     val canvas = drawContext.canvas.nativeCanvas
@@ -725,7 +725,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarCloud(
         val alpha = ((level + 0.5f) / POLAR_ALPHA_BUCKETS * 0.82f).coerceIn(0.02f, 0.82f)
         paint.color = color.copy(alpha = alpha).toArgb()
         val average = sizeSum[channel] / count.coerceAtLeast(1)
-        paint.strokeWidth = average.coerceIn(0.7f, 3.2f) * particleScale * 1.dp.toPx()
+        paint.strokeWidth = average.coerceIn(1.3f, 5.2f) * particleScale * 1.dp.toPx()
         canvas.drawPoints(points, paint)
     }
 }
