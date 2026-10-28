@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "dev.sakana.spw"
-version = "0.6.7"
+version = "0.6.11"
 
 kotlin {
     jvmToolchain(25)

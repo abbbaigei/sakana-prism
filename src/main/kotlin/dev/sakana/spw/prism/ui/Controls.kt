@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -97,7 +98,7 @@ fun SettingRow(
             .background(if (hovered) tokens.cardHover else Color.Transparent, ControlShape)
             .let { if (onClick != null) it.clickable(interactionSource = interaction, indication = null, onClick = onClick) else it }
             .heightIn(min = RowMinHeight)
-            .padding(vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -116,7 +117,7 @@ fun SettingRow(
 @Composable
 fun ControlRow(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Row(
-        modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -193,7 +194,11 @@ fun <T> SegmentedControl(
     label: (T) -> String,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
+    /** Page-level tabs are one step larger and semi-bold. */
+    emphasized: Boolean = false,
 ) {
+    val segmentHeight = if (emphasized) 32.dp else 28.dp
+    val textStyle = if (emphasized) Type.numeric.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, fontSize = 14.sp) else Type.caption
     val tokens = LocalHostTokens.current
     val density = LocalDensity.current
     var thumbLeft by remember { mutableStateOf(0.dp) }
@@ -222,19 +227,21 @@ fun <T> SegmentedControl(
                 Modifier
                     .offset(x = animatedLeft)
                     .width(animatedWidth)
-                    .height(28.dp)
+                    .height(segmentHeight)
                     .clip(RoundedCornerShape(4.dp))
                     .background(tokens.accent.copy(alpha = 0.16f)),
             )
         }
+        val fill = options.size >= 4
         Row(
+            modifier = if (fill) Modifier.fillMaxWidth() else Modifier,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             options.forEach { option ->
                 val active = option == selected
                 Box(
-                    Modifier
+                    (if (fill) Modifier.weight(1f) else Modifier)
                         .clip(RoundedCornerShape(4.dp))
                         .onGloballyPositioned { coordinates ->
                             if (active) {
@@ -247,14 +254,15 @@ fun <T> SegmentedControl(
                             interactionSource = segmentInteraction,
                             indication = null,
                         ) { onSelect(option) }
-                        .heightIn(min = 28.dp)
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        .height(segmentHeight)
+                        .padding(horizontal = if (emphasized) 16.dp else 7.dp, vertical = 0.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        label(option),
-                        style = Type.caption,
+                        text = label(option),
+                        style = textStyle,
                         color = if (active) tokens.accent else tokens.onSurfaceVariant,
+                        maxLines = 1,
                     )
                 }
             }

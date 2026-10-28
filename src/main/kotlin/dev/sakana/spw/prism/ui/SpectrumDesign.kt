@@ -264,6 +264,7 @@ private fun Header(
             selected = viewMode,
             label = { if (it.name == "FIELD") Strings["tab.field"] else Strings["tab.spectrum"] },
             onSelect = onViewMode,
+            emphasized = true,
         )
         if (controller.error != null) {
             Spacer(Modifier.width(10.dp))
@@ -392,11 +393,13 @@ private fun SpectrumPanel(
                 }
                 }
                 if (mode == GraphMode.MIRROR) {
-                    // Mirror: the horizontal axis sits on the mirror line, otherwise the
-                    // symmetric plot has no readable reference for either scale.
+                    // Mirrored plot: both scales live on the centre line, the dB values are
+                    // repeated above and below it.
                     val midAxis = plotH / 2f
+                    val axisStyle = TextStyle(fontSize = 10.sp, color = axisTextColor)
                     drawLine(Line.copy(alpha = 0.9f), Offset(left, midAxis), Offset(w, midAxis), 1f)
-                    listOf(20 to "20", 100 to "100", 500 to "500", 1000 to "1k",
+                    listOf(20 to "20", 30 to "30", 40 to "40", 50 to "50", 60 to "60", 80 to "80",
+                        100 to "100", 200 to "200", 500 to "500", 1000 to "1k",
                         2000 to "2k", 5000 to "5k", 10000 to "10k", 20000 to "20k").forEach { (hz, label) ->
                         val x = xForHz(hz.toDouble(), left, plotW)
                         drawLine(Line.copy(alpha = 0.35f), Offset(x, 0f), Offset(x, plotH), 1f)
@@ -405,17 +408,29 @@ private fun SpectrumPanel(
                             text = label,
                             topLeft = Offset(
                                 (x + 3.dp.toPx()).coerceAtMost(w - 20.dp.toPx()),
-                                midAxis - 13.dp.toPx(),
+                                midAxis + 2.dp.toPx(),
                             ),
-                            style = TextStyle(fontSize = 10.sp, color = axisTextColor),
+                            style = axisStyle,
                         )
                     }
-                    drawText(
-                        textMeasurer = textMeasurer,
-                        text = "0 dB",
-                        topLeft = Offset(1.dp.toPx(), midAxis - 7.dp.toPx()),
-                        style = TextStyle(fontSize = 10.sp, color = axisTextColor),
-                    )
+                    for (i in 0..4) {
+                        val offset = (plotH / 2f) * i / 4f
+                        val text = if (i == 0) "0 dB" else "-${i * 12}"
+                        drawText(
+                            textMeasurer = textMeasurer,
+                            text = text,
+                            topLeft = Offset(1.dp.toPx(), (midAxis - offset - 7.dp.toPx()).coerceAtLeast(0f)),
+                            style = axisStyle,
+                        )
+                        if (i > 0) {
+                            drawText(
+                                textMeasurer = textMeasurer,
+                                text = text,
+                                topLeft = Offset(1.dp.toPx(), midAxis + offset - 7.dp.toPx()),
+                                style = axisStyle,
+                            )
+                        }
+                    }
                 }
                 val n = bars.size
                 val cellW = plotW / n
@@ -597,15 +612,7 @@ private fun SettingsRail(
             SettingCard {
                 ControlRow {
                     SegmentedControl(
-                        options = SpectrogramView.entries.take(2),
-                        selected = SpectrumSettings.spectrogramView,
-                        label = { Strings["view." + it.name] },
-                        onSelect = { SpectrumSettings.chooseSpectrogramView(it) },
-                    )
-                }
-                ControlRow {
-                    SegmentedControl(
-                        options = SpectrogramView.entries.drop(2),
+                        options = SpectrogramView.entries,
                         selected = SpectrumSettings.spectrogramView,
                         label = { Strings["view." + it.name] },
                         onSelect = { SpectrumSettings.chooseSpectrogramView(it) },

@@ -42,6 +42,7 @@ import com.xuncorp.spw.workshop.api.hook.ComposableHook
 import com.xuncorp.spw.workshop.api.hook.UiHookCall
 import dev.sakana.spw.prism.preview.SpectrumController
 import dev.sakana.spw.prism.ui.SpectrumDesign
+import dev.sakana.spw.prism.ui.HostTheme
 import java.lang.reflect.Method
 import java.nio.file.Path
 
@@ -133,15 +134,16 @@ private fun SpectrumPageView() {
         }
         // Always-on-screen escape hatch: the page header can be clipped by
         // narrow host widths, so this button must not participate in its Row.
+        // No plate of its own — it sits directly on the host material like the rest of the
+        // page chrome.
+        val closeTokens = HostTheme.tokens(HostTheme.detect())
         Text(
             Strings["btn.close"],
-            modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).zIndex(20f)
-                .border(1.dp, Color(0xFF3B4A5C), RoundedCornerShape(50))
-                .background(Color(0xE60D121A), RoundedCornerShape(50))
+            modifier = Modifier.align(Alignment.TopEnd).padding(14.dp).zIndex(20f)
                 .clickable { SpectrumHostState.close() }
-                .padding(horizontal = 12.dp, vertical = 7.dp),
-            color = Color(0xFFC6D2DF),
-            fontSize = 10.sp,
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            color = closeTokens.onSurfaceVariant,
+            fontSize = 12.sp,
         )
     }
 }
