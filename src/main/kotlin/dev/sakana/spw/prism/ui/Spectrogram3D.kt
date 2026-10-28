@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
@@ -105,10 +106,16 @@ internal fun DrawScope.drawSpectrogram(
     }
 
     fun timeX(index: Int): Float = 1f - 2f * index / (rows - 1)
-    fun depthOf(column: Int): Float =
-        DEPTH_MARGIN + (1f - DEPTH_MARGIN) * (if (columns > 1) column.toFloat() / (columns - 1) else 0f)
+    // Depth is the frequency coordinate itself: 20 Hz sits on the front edge, 20 kHz on the
+    // back edge, and both the surface and the tick labels go through SpectrumLayout, so a
+    // feature at 1 kHz is drawn exactly where the "1000" tick is.
+    val binStep = if (columns > 1) (bins - 1).toDouble() / (columns - 1) else 0.0
     fun binOf(column: Int): Int =
-        (column.toFloat() * (bins - 1) / (columns - 1)).toInt().coerceIn(0, bins - 1)
+        (column * binStep).toInt().coerceIn(0, bins - 1)
+    fun hzOf(column: Int): Double =
+        SpectrumLayout.frequencyAt(column * binStep / (bins - 1) * SpectrumLayout.POINTS)
+    fun depthOf(column: Int): Float =
+        DEPTH_MARGIN + (1f - DEPTH_MARGIN) * SpectrumLayout.fractionForHz(hzOf(column)).toFloat()
 
     // Floor grid first, so the surface floats above it. The outermost time lines are
     // skipped: they read as hard side borders, which the reference does not have.
@@ -218,24 +225,51 @@ internal fun DrawScope.drawSpectrogram(
         style = Stroke(1.dp.toPx()),
     )
 
-    listOf(10.0, 100.0, 1000.0, 10000.0).forEach { frequency ->
-        val z = DEPTH_MARGIN + (1f - DEPTH_MARGIN) * SpectrumLayout.fractionForHz(frequency).toFloat()
+    // The depth axis is exactly SpectrumLayout's domain: 20 Hz at the front edge to 20 kHz
+    // at the back. The axis line runs along the right edge and every tick is placed with
+    // the same mapping the surface uses, so the labels are the coordinate.
+    drawLine(
+        axisColor,
+        Offset(frontRight.x, frontRight.y),
+        Offset(backRight.x, backRight.y),
+        1.dp.toPx(),
+    )
+    // Dark shadow keeps the numbers readable where bright ridges run underneath them.
+    val axisLabel = labelStyle.copy(shadow = Shadow(Color(0xC0000000), Offset(1f, 1f), 2.5f))
+    val ticks = listOf(20.0, 100.0, 1000.0, 10000.0, 20000.0)
+    ticks.forEachIndexed { index, frequency ->
+        val fraction = SpectrumLayout.fractionForHz(frequency).toFloat()
+        val z = DEPTH_MARGIN + (1f - DEPTH_MARGIN) * fraction
         val anchor = position(1f, 0f, z)
-        val label = if (frequency >= 10000) "10000" else if (frequency >= 1000) "1000" else frequency.toInt().toString()
-        // Pushed further out so the labels clear the right edge of the surface.
+        val label = when {
+            frequency >= 20000.0 -> "20k"
+            frequency >= 10000.0 -> "10k"
+            frequency >= 1000.0 -> "1k"
+            else -> frequency.toInt().toString()
+        }
+        // Tick on the axis, then the label just outside it.
+        drawLine(
+            axisColor,
+            Offset(anchor.x, anchor.y),
+            Offset(anchor.x + 5.dp.toPx(), anchor.y),
+            1.dp.toPx(),
+        )
+        // 10k and 20k are only a tenth of the depth apart, so the last one is lifted to
+        // keep the two from touching.
+        val lift = if (index == ticks.lastIndex) 13.dp.toPx() else 6.dp.toPx()
         drawText(
             textMeasurer = textMeasurer,
             text = label,
-            topLeft = Offset(anchor.x + 16.dp.toPx(), anchor.y - 6.dp.toPx()),
-            style = labelStyle,
+            topLeft = Offset(anchor.x + 8.dp.toPx(), anchor.y - lift),
+            style = axisLabel,
         )
     }
-    // "Hz" sits clear of the tick labels instead of colliding with the 10 Hz one.
+    // "Hz" sits under the front tick, clear of the labels themselves.
     drawText(
         textMeasurer = textMeasurer,
         text = "Hz",
-        topLeft = Offset(frontRight.x + 46.dp.toPx(), frontRight.y - 4.dp.toPx()),
-        style = labelStyle,
+        topLeft = Offset(frontRight.x + 8.dp.toPx(), frontRight.y + 10.dp.toPx()),
+        style = axisLabel,
     )
     // The sheet runs from the newest frame back to `span` seconds, so its middle is half
     // of that — label the centre tick accordingly instead of just "s".
