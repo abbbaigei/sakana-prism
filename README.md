@@ -42,6 +42,10 @@ Salt Player for Windows 的实时频谱与立体声声场可视化插件。
 订阅创意工坊条目，然后在 Salt Player 的创意工坊页启用、授予权限、重启播放器即可。
 也可以本地导入自己打的 `.spmod`。
 
+## 技术栈
+
+选型、模块划分、性能预算、授权与风险：[docs/TECH-STACK.md](docs/TECH-STACK.md)
+
 ## 配置要求
 
 详细版（含逐项说明、实测数据、降级建议）：[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)
