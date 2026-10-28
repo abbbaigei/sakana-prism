@@ -110,6 +110,12 @@ fun main(args: Array<String>) = application {
                 window,
                 DnDConstants.ACTION_COPY,
                 object : DropTargetAdapter() {
+                    // Both callbacks must accept, otherwise AWT rejects the drag and
+                    // drop() is never delivered.
+                    override fun dragEnter(event: DropTargetDragEvent) {
+                        event.acceptDrag(DnDConstants.ACTION_COPY)
+                    }
+
                     override fun dragOver(event: DropTargetDragEvent) {
                         event.acceptDrag(DnDConstants.ACTION_COPY)
                     }
@@ -139,7 +145,7 @@ fun main(args: Array<String>) = application {
             Box(Modifier.fillMaxWidth().weight(1f)) {
                 val path = trackPath
                 if (path == null) {
-                    DropHint(message)
+                    DropHint(message) { chooseFile(window)?.let(::load) }
                 } else {
                     val controller = remember(path) {
                         SpectrumController(path, { player.positionMs }, { player.playing })
@@ -153,7 +159,7 @@ fun main(args: Array<String>) = application {
 }
 
 @Composable
-private fun DropHint(message: String?) {
+private fun DropHint(message: String?, onBrowse: () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
@@ -165,6 +171,15 @@ private fun DropHint(message: String?) {
             )
             Spacer(Modifier.height(10.dp))
             Text("拖入音频文件即可播放 · Drop an audio file to play", fontSize = 13.sp, color = Muted)
+            Spacer(Modifier.height(18.dp))
+            Box(
+                Modifier
+                    .background(Teal.copy(alpha = 0.16f), RoundedCornerShape(50))
+                    .clickable(onClick = onBrowse)
+                    .padding(horizontal = 20.dp, vertical = 9.dp),
+            ) {
+                Text("打开文件 · Open file", fontSize = 12.sp, color = Teal)
+            }
             if (message != null) {
                 Spacer(Modifier.height(14.dp))
                 Text(message, fontSize = 12.sp, color = Color(0xFFFF9E80))
@@ -236,3 +251,25 @@ private fun format(ms: Long): String {
 
 private fun Path.isAudioCandidate(): Boolean =
     name.substringAfterLast('.', "").lowercase() in AUDIO_EXTENSIONS
+
+/** Swing file chooser, used when drag and drop is not available (remote desktop, etc.). */
+private fun chooseFile(parent: java.awt.Window?): Path? {
+    val chooser = javax.swing.JFileChooser().apply {
+        dialogTitle = "选择音频文件 / Choose an audio file"
+        fileSelectionMode = javax.swing.JFileChooser.FILES_ONLY
+        isAcceptAllFileFilterUsed = true
+        fileFilter = object : javax.swing.filechooser.FileFilter() {
+            override fun accept(f: java.io.File): Boolean =
+                f.isDirectory || f.extension().lowercase() in AUDIO_EXTENSIONS
+
+            override fun getDescription(): String = "音频 / Audio (*.flac, *.mp3, *.m4a, *.wav, …)"
+        }
+    }
+    return if (chooser.showOpenDialog(parent) == javax.swing.JFileChooser.APPROVE_OPTION) {
+        chooser.selectedFile?.toPath()
+    } else {
+        null
+    }
+}
+
+private fun java.io.File.extension(): String = name.substringAfterLast('.', "")
