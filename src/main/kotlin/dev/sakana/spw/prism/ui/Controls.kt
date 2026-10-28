@@ -66,11 +66,9 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
 fun SettingCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val tokens = LocalHostTokens.current
     Column(
-        modifier
-            .fillMaxWidth()
-            .clip(CardShape)
-            .background(tokens.card, CardShape)
-            .padding(horizontal = 16.dp, vertical = 2.dp)  // SaltDimens.padding 16 / subPadding 12,
+        // No plate and no outline: a box around each group read as a border. Rows draw
+        // their own full-width band on hover/selection instead.
+        modifier.fillMaxWidth(),
     ) {
         content()
     }
