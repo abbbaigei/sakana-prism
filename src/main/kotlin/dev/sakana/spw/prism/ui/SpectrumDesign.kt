@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.sakana.spw.prism.audio.AnalysisScope
 import dev.sakana.spw.prism.diagnostics.BuildInfo
+import dev.sakana.spw.prism.i18n.AppLanguage
 import dev.sakana.spw.prism.i18n.Strings
 import dev.sakana.spw.prism.diagnostics.DiagnosticsLog
 import dev.sakana.spw.prism.audio.SpectrumLayout
@@ -661,6 +662,27 @@ private fun SettingsRail(
                     color = Muted,
                     lineHeight = 9.sp,
                 )
+            }
+        }
+        Column {
+            Text(Strings["rail.language"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Spacer(Modifier.height(8.dp))
+            // Native names only: a user who cannot read the current UI language still
+            // recognises their own.
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                AppLanguage.entries.take(5).forEach { item ->
+                    Chip(item.nativeName, SpectrumSettings.language == item, theme.accent) {
+                        SpectrumSettings.chooseLanguage(item)
+                    }
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                AppLanguage.entries.drop(5).forEach { item ->
+                    Chip(item.nativeName, SpectrumSettings.language == item, theme.accent) {
+                        SpectrumSettings.chooseLanguage(item)
+                    }
+                }
             }
         }
         Chip(Strings["rail.reset"], false, theme.accent) {

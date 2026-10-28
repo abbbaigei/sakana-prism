@@ -88,6 +88,7 @@ object Strings {
         AppLanguage.ZH_HANS to mapOf(
             "tab.spectrum" to "频谱",
             "tab.field" to "声场",
+            "rail.language" to "语言",
             "live" to "实时",
             "title.spectrum" to "频谱",
             "title.field" to "声场",
@@ -136,6 +137,7 @@ object Strings {
         AppLanguage.ZH_HANT to mapOf(
             "tab.spectrum" to "頻譜",
             "tab.field" to "聲場",
+            "rail.language" to "語言",
             "live" to "即時",
             "title.spectrum" to "頻譜",
             "title.field" to "聲場",
@@ -184,6 +186,7 @@ object Strings {
         AppLanguage.EN to mapOf(
             "tab.spectrum" to "Spectrum",
             "tab.field" to "Sound field",
+            "rail.language" to "LANGUAGE",
             "live" to "LIVE",
             "title.spectrum" to "Spectrum",
             "title.field" to "Sound Field",
@@ -232,6 +235,7 @@ object Strings {
         AppLanguage.FR to mapOf(
             "tab.spectrum" to "Spectre",
             "tab.field" to "Champ sonore",
+            "rail.language" to "LANGUE",
             "live" to "DIRECT",
             "title.spectrum" to "Spectre",
             "title.field" to "Champ sonore",
@@ -280,6 +284,7 @@ object Strings {
         AppLanguage.ES to mapOf(
             "tab.spectrum" to "Espectro",
             "tab.field" to "Campo sonoro",
+            "rail.language" to "IDIOMA",
             "live" to "EN VIVO",
             "title.spectrum" to "Espectro",
             "title.field" to "Campo sonoro",
@@ -328,6 +333,7 @@ object Strings {
         AppLanguage.RU to mapOf(
             "tab.spectrum" to "Спектр",
             "tab.field" to "Звуковое поле",
+            "rail.language" to "ЯЗЫК",
             "live" to "В ЭФИРЕ",
             "title.spectrum" to "Спектр",
             "title.field" to "Звуковое поле",
@@ -376,6 +382,7 @@ object Strings {
         AppLanguage.AR to mapOf(
             "tab.spectrum" to "الطيف",
             "tab.field" to "المجال الصوتي",
+            "rail.language" to "اللغة",
             "live" to "مباشر",
             "title.spectrum" to "الطيف",
             "title.field" to "المجال الصوتي",
@@ -424,6 +431,7 @@ object Strings {
         AppLanguage.JA to mapOf(
             "tab.spectrum" to "スペクトル",
             "tab.field" to "サウンドフィールド",
+            "rail.language" to "言語",
             "live" to "リアルタイム",
             "title.spectrum" to "スペクトル",
             "title.field" to "サウンドフィールド",
@@ -472,6 +480,7 @@ object Strings {
         AppLanguage.KO to mapOf(
             "tab.spectrum" to "스펙트럼",
             "tab.field" to "사운드 필드",
+            "rail.language" to "언어",
             "live" to "실시간",
             "title.spectrum" to "스펙트럼",
             "title.field" to "사운드 필드",
