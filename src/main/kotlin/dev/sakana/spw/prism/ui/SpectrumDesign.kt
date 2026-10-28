@@ -381,9 +381,9 @@ private fun SpectrumPanel(
                             history = history.toList(),
                             view = SpectrumSettings.spectrogramView,
                             area = androidx.compose.ui.geometry.Rect(
-                                6.dp.toPx(),
-                                6.dp.toPx(),
-                                w - 52.dp.toPx(),
+                                2.dp.toPx(),
+                                2.dp.toPx(),
+                                w - 46.dp.toPx(),
                                 plotH - 2.dp.toPx(),
                             ),
                             textMeasurer = textMeasurer,

@@ -90,7 +90,7 @@ internal fun DrawScope.drawSpectrogram(
     val maxX = corners.maxOf { it.x }
     val minY = corners.minOf { it.y }
     val maxY = corners.maxOf { it.y }
-    val padding = 18.dp.toPx()
+    val padding = 8.dp.toPx()
     val scale = min(
         (area.width - padding * 2f) / max(maxX - minX, 0.0001f),
         (area.height - padding * 2f) / max(maxY - minY, 0.0001f),
@@ -251,7 +251,7 @@ internal fun DrawScope.drawSpectrogram(
         drawLine(
             axisColor,
             Offset(anchor.x, anchor.y),
-            Offset(anchor.x + 5.dp.toPx(), anchor.y),
+            Offset(anchor.x + 11.dp.toPx(), anchor.y),
             1.dp.toPx(),
         )
         // 10k and 20k are only a tenth of the depth apart, so the last one is lifted to
@@ -260,7 +260,7 @@ internal fun DrawScope.drawSpectrogram(
         drawText(
             textMeasurer = textMeasurer,
             text = label,
-            topLeft = Offset(anchor.x + 8.dp.toPx(), anchor.y - lift),
+            topLeft = Offset(anchor.x + 18.dp.toPx(), anchor.y - lift),
             style = axisLabel,
         )
     }
@@ -268,7 +268,7 @@ internal fun DrawScope.drawSpectrogram(
     drawText(
         textMeasurer = textMeasurer,
         text = "Hz",
-        topLeft = Offset(frontRight.x + 8.dp.toPx(), frontRight.y + 10.dp.toPx()),
+        topLeft = Offset(frontRight.x + 18.dp.toPx(), frontRight.y + 10.dp.toPx()),
         style = axisLabel,
     )
     // The sheet runs from the newest frame back to `span` seconds, so its middle is half
