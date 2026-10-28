@@ -252,48 +252,25 @@ private fun Header(
                 Spacer(Modifier.width(12.dp))
                 Text(
                     if (viewMode == ViewMode.FIELD) Strings["title.field"] else Strings["title.spectrum"],
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.5.sp,
-                    color = TextPrimary,
+                    style = Type.title,
+                    color = LocalHostTokens.current.onSurface,
                 )
             }
             Spacer(Modifier.height(4.dp))
             Text(
                 Strings.brand + "  ·  " + if (viewMode == ViewMode.FIELD) Strings["sub.field"] else Strings["sub.spectrum"],
-                fontSize = 9.sp,
-                letterSpacing = 2.4.sp,
-                color = TextTertiary,
+                style = Type.caption,
+                color = LocalHostTokens.current.onSurfaceVariant,
             )
         }
         Spacer(Modifier.weight(1f))
-        // Segmented control instead of two loose chips.
-        Row(
-            Modifier
-                .clip(RoundedCornerShape(50))
-                .background(SurfaceHigh, RoundedCornerShape(50))
-                .border(1.dp, Hairline, RoundedCornerShape(50))
-                .padding(3.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            ViewMode.entries.forEach { item ->
-                val selected = item == viewMode
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(if (selected) theme.accent.copy(alpha = 0.16f) else Color.Transparent)
-                        .clickable { onViewMode(item) }
-                        .padding(horizontal = 16.dp, vertical = 7.dp),
-                ) {
-                    Text(
-                        if (item.name == "FIELD") Strings["tab.field"] else Strings["tab.spectrum"],
-                        fontSize = 10.sp,
-                        letterSpacing = 0.4.sp,
-                        color = if (selected) theme.accent else TextSecondary,
-                    )
-                }
-            }
-        }
+        // Same animated segmented control as the settings rail: the pill slides.
+        SegmentedControl(
+            options = ViewMode.entries,
+            selected = viewMode,
+            label = { if (it.name == "FIELD") Strings["tab.field"] else Strings["tab.spectrum"] },
+            onSelect = onViewMode,
+        )
         Spacer(Modifier.width(10.dp))
         StatusDot(controller, theme)
     }
@@ -336,6 +313,8 @@ private fun SpectrumPanel(
 ) {
     val bars = SpectrumLayout.aggregateBars(controller.bands, barCount)
     val textMeasurer = rememberTextMeasurer()
+    // Read once outside the draw scope: CompositionLocal access is not allowed inside Canvas.
+    val axisTextColor = LocalHostTokens.current.onSurfaceVariant
     // The waterfall needs a steady time base: sample at ~30 Hz instead of once per
     // recomposition, otherwise the slab depth would depend on the refresh rate.
     val history = remember(barCount) { ArrayDeque<FloatArray>() }
@@ -375,9 +354,9 @@ private fun SpectrumPanel(
     ) {
         Column(Modifier.fillMaxSize().padding(18.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(Strings["response"], fontSize = 9.sp, letterSpacing = 1.8.sp, color = Muted)
+                Text(Strings["response"], fontSize = 9.sp, letterSpacing = 1.8.sp, color = LocalHostTokens.current.onSurfaceVariant)
                 Spacer(Modifier.weight(1f))
-                Text("16384 点 FFT · $barCount 频段 · dBFS", fontSize = 9.sp, color = Muted)
+                Text("16384 点 FFT · $barCount 频段 · dBFS", fontSize = 9.sp, color = LocalHostTokens.current.onSurfaceVariant)
             }
             Spacer(Modifier.height(12.dp))
             Canvas(Modifier.fillMaxWidth().weight(1f)) {
@@ -397,7 +376,7 @@ private fun SpectrumPanel(
                     val y = plotH * i / 8f
                     drawLine(grid, Offset(left, y), Offset(w, y), 1f)
                 }
-                val yStyle = TextStyle(fontSize = 10.sp, color = Muted, fontFamily = FontFamily.Monospace)
+                val yStyle = TextStyle(fontSize = 10.sp, color = axisTextColor, fontFamily = FontFamily.Monospace)
                 for (i in 0..8) {
                     val y = plotH * i / 8f
                     val db = -12 * i
@@ -466,7 +445,7 @@ private fun SpectrumPanel(
                                 plotH - 2.dp.toPx(),
                             ),
                             textMeasurer = textMeasurer,
-                            labelStyle = TextStyle(fontSize = 9.sp, color = Muted, fontFamily = FontFamily.Monospace),
+                            labelStyle = TextStyle(fontSize = 10.sp, color = axisTextColor, fontFamily = FontFamily.Monospace),
                             axisColor = Line.copy(alpha = 0.75f),
                             // A slow frame means the rasterizer is the bottleneck; drop the
                             // wide halo first instead of dropping the whole frame rate.
@@ -515,7 +494,7 @@ private fun SpectrumPanel(
                         val frac = frequencyFraction(hz.toDouble()).toFloat()
                         val x = (maxWidth * frac - 12.dp).coerceIn(0.dp, maxWidth - 32.dp)
                         Box(Modifier.offset(x = x)) {
-                            Text(label, fontSize = 10.sp, color = Muted)
+                            Text(label, fontSize = 10.sp, color = LocalHostTokens.current.onSurfaceVariant)
                         }
                     }
                 }
@@ -528,7 +507,7 @@ private fun SpectrumPanel(
 @Composable
 private fun Footer(controller: SpectrumController, theme: ThemePreset, metrics: RenderMetrics) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(Strings["rail.peaks"], fontSize = 9.sp, letterSpacing = 1.4.sp, color = Muted)
+        Text(Strings["rail.peaks"], fontSize = 9.sp, letterSpacing = 1.4.sp, color = LocalHostTokens.current.onSurfaceVariant)
         Spacer(Modifier.width(9.dp))
         Text("${controller.peakHz} Hz", fontSize = 12.sp, color = theme.accent, fontFamily = FontFamily.Monospace)
         Spacer(Modifier.weight(1f))
@@ -538,14 +517,14 @@ private fun Footer(controller: SpectrumController, theme: ThemePreset, metrics: 
         val nowNs = System.nanoTime()
         stamps.addLast(nowNs)
         while (stamps.isNotEmpty() && nowNs - stamps.first() > 1_000_000_000L) stamps.removeFirst()
-        Text("${stamps.size} fps  ·  ", fontSize = 9.sp, color = Muted)
+        Text("${stamps.size} fps  ·  ", fontSize = 9.sp, color = LocalHostTokens.current.onSurfaceVariant)
         Text(
             Strings["footer.draw"] + " ${"%.1f".format(metrics.drawMs)} ms  ·  " + Strings["footer.analyze"] + " ${"%.1f".format(controller.analyzeMs)} ms",
             fontSize = 9.sp,
-            color = Muted,
+            color = LocalHostTokens.current.onSurfaceVariant,
         )
         Spacer(Modifier.width(10.dp))
-        Text("${controller.sampleRate / 1000.0} kHz  ·  16384 " + Strings["footer.window"], fontSize = 9.sp, color = Muted)
+        Text("${controller.sampleRate / 1000.0} kHz  ·  16384 " + Strings["footer.window"], fontSize = 9.sp, color = LocalHostTokens.current.onSurfaceVariant)
         Spacer(Modifier.width(12.dp))
         Text(
             "v${BuildInfo.version}",
@@ -775,7 +754,7 @@ private fun ColorField(label: String, value: String, accent: Color, onValue: (St
                 .border(1.dp, Color(0xFF304052), RoundedCornerShape(3.dp)),
         )
         Spacer(Modifier.width(6.dp))
-        Text(label, fontSize = 8.sp, color = Muted, modifier = Modifier.width(42.dp))
+        Text(label, fontSize = 8.sp, color = LocalHostTokens.current.onSurfaceVariant, modifier = Modifier.width(42.dp))
         BasicTextField(
             value = text,
             onValueChange = { raw ->

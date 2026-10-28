@@ -26,6 +26,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 /**
  * Host-style controls: grouped rows inside a translucent card, Fluent switches, segmented
@@ -113,28 +123,41 @@ fun ControlRow(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     }
 }
 
-/** Fluent-style switch: 40x20 track, 12dp knob, 120 ms visual change. */
+/** Fluent-style switch: 40x20 track, 16dp knob, the knob slides instead of jumping. */
 @Composable
 fun HostSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     val tokens = LocalHostTokens.current
-    val track = if (checked) tokens.accent else tokens.outlineStrong
-    val knob = if (checked) tokens.onAccent else tokens.onSurface
+    val trackColor by animateColorAsState(
+        targetValue = if (checked) tokens.accent else tokens.outlineStrong,
+        animationSpec = tween(140),
+        label = "switch-track",
+    )
+    val knobColor by animateColorAsState(
+        targetValue = if (checked) Color.White else tokens.onSurface,
+        animationSpec = tween(140),
+        label = "switch-knob",
+    )
+    val knobOffset by animateDpAsState(
+        targetValue = if (checked) 20.dp else 0.dp,
+        animationSpec = tween(140, easing = FastOutSlowInEasing),
+        label = "switch-offset",
+    )
     Box(
         modifier
             .width(40.dp)
             .height(20.dp)
             .clip(RoundedCornerShape(50))
-            .background(track, RoundedCornerShape(50))
+            .background(trackColor, RoundedCornerShape(50))
             .border(1.dp, if (checked) Color.Transparent else tokens.outline, RoundedCornerShape(50))
             .clickable { onCheckedChange(!checked) }
             .padding(2.dp),
     ) {
         Box(
             Modifier
-                .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
+                .offset(x = knobOffset)
                 .width(16.dp)
                 .height(16.dp)
-                .background(knob, RoundedCornerShape(50)),
+                .background(knobColor, RoundedCornerShape(50)),
         )
     }
 }
@@ -159,8 +182,8 @@ fun ToggleRow(
 }
 
 /**
- * Segmented picker modelled on the host's: one rounded container, the selected segment gets
- * a tinted fill and the accent colour.
+ * Segmented picker modelled on the host's: one rounded container, and the selected segment
+ * is a pill that slides to the new position instead of jumping.
  */
 @Composable
 fun <T> SegmentedControl(
@@ -171,30 +194,61 @@ fun <T> SegmentedControl(
     modifier: Modifier = Modifier,
 ) {
     val tokens = LocalHostTokens.current
-    Row(
+    val density = LocalDensity.current
+    var thumbLeft by remember { mutableStateOf(0.dp) }
+    var thumbWidth by remember { mutableStateOf(0.dp) }
+    var placed by remember { mutableStateOf(false) }
+    val animatedLeft by animateDpAsState(
+        targetValue = thumbLeft,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "segment-left",
+    )
+    val animatedWidth by animateDpAsState(
+        targetValue = thumbWidth,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "segment-width",
+    )
+    Box(
         modifier
             .clip(ControlShape)
             .background(tokens.cardHover, ControlShape)
             .border(1.dp, tokens.outline, ControlShape)
             .padding(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        options.forEach { option ->
-            val active = option == selected
+        if (placed) {
             Box(
                 Modifier
+                    .offset(x = animatedLeft)
+                    .width(animatedWidth)
+                    .height(28.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(if (active) tokens.accent.copy(alpha = 0.16f) else Color.Transparent)
-                    .clickable { onSelect(option) }
-                    .heightIn(min = RowMinHeight)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    label(option),
-                    style = Type.caption,
-                    color = if (active) tokens.accent else tokens.onSurfaceVariant,
-                )
+                    .background(tokens.accent.copy(alpha = 0.16f)),
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            options.forEach { option ->
+                val active = option == selected
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .onGloballyPositioned { coordinates ->
+                            if (active) {
+                                thumbLeft = with(density) { coordinates.positionInParent().x.toDp() }
+                                thumbWidth = with(density) { coordinates.size.width.toDp() }
+                                placed = true
+                            }
+                        }
+                        .clickable { onSelect(option) }
+                        .heightIn(min = 28.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        label(option),
+                        style = Type.caption,
+                        color = if (active) tokens.accent else tokens.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
