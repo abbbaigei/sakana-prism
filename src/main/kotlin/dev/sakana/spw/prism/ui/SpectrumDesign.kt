@@ -219,7 +219,7 @@ private fun Header(
             Text(if (viewMode == ViewMode.FIELD) "声场" else "频谱",
                 fontSize = 30.sp, fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp, color = Color(0xFFF0F5FB))
-            Text(if (viewMode == ViewMode.FIELD) Strings["sub.field"] else Strings["sub.spectrum"],
+            Text(Strings.brand + " / " + if (viewMode == ViewMode.FIELD) Strings["sub.field"] else Strings["sub.spectrum"],
                 fontSize = 9.sp, letterSpacing = 2.2.sp, color = Muted)
         }
         Spacer(Modifier.weight(1f))

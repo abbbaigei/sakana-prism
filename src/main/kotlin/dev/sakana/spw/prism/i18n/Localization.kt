@@ -67,6 +67,12 @@ object WindowsLanguage {
  */
 object Strings {
 
+    /**
+     * Product name shown above the page title. The plugin lives inside Salt Player, the
+     * standalone app shows its own name; everything else is shared.
+     */
+    var brand: String = "SALT PLAYER"
+
     /** Resolved language, kept as state so the UI recomposes when it changes. */
     var language: AppLanguage by mutableStateOf(AppLanguage.ZH_HANS)
         private set
@@ -118,8 +124,8 @@ object Strings {
             "live" to "实时",
             "title.spectrum" to "频谱",
             "title.field" to "声场",
-            "sub.spectrum" to "SALT PLAYER / 实时分析",
-            "sub.field" to "SALT PLAYER / 立体声声场",
+            "sub.spectrum" to "实时分析",
+            "sub.field" to "立体声声场",
             "response" to "频率响应",
             "rail.control" to "控制",
             "rail.display" to "显示",
@@ -193,8 +199,8 @@ object Strings {
             "live" to "即時",
             "title.spectrum" to "頻譜",
             "title.field" to "聲場",
-            "sub.spectrum" to "SALT PLAYER / 即時分析",
-            "sub.field" to "SALT PLAYER / 立體聲聲場",
+            "sub.spectrum" to "即時分析",
+            "sub.field" to "立體聲聲場",
             "response" to "頻率響應",
             "rail.control" to "控制",
             "rail.display" to "顯示",
@@ -268,8 +274,8 @@ object Strings {
             "live" to "LIVE",
             "title.spectrum" to "Spectrum",
             "title.field" to "Sound Field",
-            "sub.spectrum" to "SALT PLAYER / REAL-TIME ANALYSIS",
-            "sub.field" to "SALT PLAYER / STEREO FIELD",
+            "sub.spectrum" to "REAL-TIME ANALYSIS",
+            "sub.field" to "STEREO FIELD",
             "response" to "FREQUENCY RESPONSE",
             "rail.control" to "CONTROLS",
             "rail.display" to "DISPLAY",
@@ -343,8 +349,8 @@ object Strings {
             "live" to "DIRECT",
             "title.spectrum" to "Spectre",
             "title.field" to "Champ sonore",
-            "sub.spectrum" to "SALT PLAYER / ANALYSE EN TEMPS RÉEL",
-            "sub.field" to "SALT PLAYER / CHAMP STÉRÉO",
+            "sub.spectrum" to "ANALYSE EN TEMPS RÉEL",
+            "sub.field" to "CHAMP STÉRÉO",
             "response" to "RÉPONSE EN FRÉQUENCE",
             "rail.control" to "CONTRÔLES",
             "rail.display" to "AFFICHAGE",
@@ -418,8 +424,8 @@ object Strings {
             "live" to "EN VIVO",
             "title.spectrum" to "Espectro",
             "title.field" to "Campo sonoro",
-            "sub.spectrum" to "SALT PLAYER / ANÁLISIS EN TIEMPO REAL",
-            "sub.field" to "SALT PLAYER / CAMPO ESTÉREO",
+            "sub.spectrum" to "ANÁLISIS EN TIEMPO REAL",
+            "sub.field" to "CAMPO ESTÉREO",
             "response" to "RESPUESTA EN FRECUENCIA",
             "rail.control" to "CONTROLES",
             "rail.display" to "MOSTRAR",
@@ -493,8 +499,8 @@ object Strings {
             "live" to "В ЭФИРЕ",
             "title.spectrum" to "Спектр",
             "title.field" to "Звуковое поле",
-            "sub.spectrum" to "SALT PLAYER / АНАЛИЗ В РЕАЛЬНОМ ВРЕМЕНИ",
-            "sub.field" to "SALT PLAYER / СТЕРЕОПОЛЕ",
+            "sub.spectrum" to "АНАЛИЗ В РЕАЛЬНОМ ВРЕМЕНИ",
+            "sub.field" to "СТЕРЕОПОЛЕ",
             "response" to "АЧХ",
             "rail.control" to "УПРАВЛЕНИЕ",
             "rail.display" to "ОТОБРАЖЕНИЕ",
@@ -568,8 +574,8 @@ object Strings {
             "live" to "مباشر",
             "title.spectrum" to "الطيف",
             "title.field" to "المجال الصوتي",
-            "sub.spectrum" to "SALT PLAYER / تحليل فوري",
-            "sub.field" to "SALT PLAYER / مجال ستيريو",
+            "sub.spectrum" to "تحليل فوري",
+            "sub.field" to "مجال ستيريو",
             "response" to "استجابة التردد",
             "rail.control" to "التحكم",
             "rail.display" to "العرض",
@@ -643,8 +649,8 @@ object Strings {
             "live" to "リアルタイム",
             "title.spectrum" to "スペクトル",
             "title.field" to "サウンドフィールド",
-            "sub.spectrum" to "SALT PLAYER / リアルタイム解析",
-            "sub.field" to "SALT PLAYER / ステレオフィールド",
+            "sub.spectrum" to "リアルタイム解析",
+            "sub.field" to "ステレオフィールド",
             "response" to "周波数特性",
             "rail.control" to "コントロール",
             "rail.display" to "表示",
@@ -718,8 +724,8 @@ object Strings {
             "live" to "실시간",
             "title.spectrum" to "스펙트럼",
             "title.field" to "사운드 필드",
-            "sub.spectrum" to "SALT PLAYER / 실시간 분석",
-            "sub.field" to "SALT PLAYER / 스테레오 필드",
+            "sub.spectrum" to "실시간 분석",
+            "sub.field" to "스테레오 필드",
             "response" to "주파수 응답",
             "rail.control" to "컨트롤",
             "rail.display" to "표시",

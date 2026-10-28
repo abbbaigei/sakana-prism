@@ -20,6 +20,16 @@ internal interface BassNative : Library {
     fun BASS_ChannelGetLevel(handle: Int): Int
     fun BASS_PluginLoad(file: String, flags: Int): Int
     fun BASS_PluginFree(handle: Int): Boolean
+
+    // Playback (used by the standalone app; the plugin itself only decodes).
+    fun BASS_ChannelPlay(handle: Int, restart: Boolean): Boolean
+    fun BASS_ChannelPause(handle: Int): Boolean
+    fun BASS_ChannelStop(handle: Int): Boolean
+    fun BASS_ChannelIsActive(handle: Int): Int
+    fun BASS_ChannelGetPosition(handle: Int, mode: Int): Long
+    fun BASS_ChannelBytes2Seconds(handle: Int, pos: Long): Double
+    fun BASS_ChannelSetAttribute(handle: Int, attrib: Int, value: Float): Boolean
+    fun BASS_Free(): Boolean
 }
 
 @Structure.FieldOrder("freq", "chans", "flags", "ctype", "origres", "plugin", "sample", "filename")
@@ -43,6 +53,14 @@ internal object BassFlags {
     const val DATA_FFT8192 = 0x80000005.toInt()
     const val DATA_FFT16384 = 0x80000006.toInt()
     const val DATA_FFT32768 = 0x80000007.toInt()
+
+    /** BASS_ACTIVE_* values returned by BASS_ChannelIsActive. */
+    const val ACTIVE_STOPPED = 0
+    const val ACTIVE_PLAYING = 1
+    const val ACTIVE_PAUSED = 3
+
+    /** BASS_ATTRIB_VOL: linear volume, 0..1. */
+    const val ATTRIB_VOL = 2
 }
 
 /** Owns exactly one independent decode channel. */

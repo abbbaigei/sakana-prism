@@ -2,7 +2,6 @@ plugins {
     kotlin("jvm") version "2.4.20"
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.20"
     id("org.jetbrains.compose") version "1.10.0"
-    application
 }
 
 group = "dev.sakana.spw"
@@ -21,8 +20,38 @@ dependencies {
     runtimeOnly(compose.material3)
 }
 
-application {
-    mainClass.set("dev.sakana.spw.prism.preview.PreviewMainKt")
+
+
+/**
+ * Portable app image: `gradlew createDistributable` writes build/compose/binaries/main/app/.
+ * jpackage needs no WiX for this format, so it works on a clean machine. The BASS natives are
+ * copied next to the executable afterwards (the app looks in ./native first).
+ */
+compose.desktop {
+    application {
+        mainClass = "dev.sakana.spw.prism.app.StandaloneAppKt"
+        nativeDistributions {
+            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.AppImage)
+            packageName = "SakanaPrism"
+            packageVersion = project.version.toString()
+            description = "Sakana Prism - spectrum and sound field visualiser"
+            vendor = "Sakana"
+            // Keep the runtime lean; the analyser needs no crypto or JDBC modules.
+            modules("java.instrument", "java.management", "jdk.unsupported")
+        }
+    }
+}
+
+/** Copies the BASS natives beside the packaged executable. */
+tasks.register<Copy>("copyNativeLibs") {
+    from(layout.projectDirectory.dir("sdk/native"))
+    into(layout.buildDirectory.dir("compose/binaries/main/app/SakanaPrism/native"))
+}
+
+// configureEach, because the Compose plugin registers its packaging tasks after this file
+// is evaluated.
+tasks.matching { it.name == "createDistributable" }.configureEach {
+    finalizedBy("copyNativeLibs")
 }
 
 tasks.jar {
