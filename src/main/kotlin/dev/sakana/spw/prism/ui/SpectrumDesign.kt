@@ -52,6 +52,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.ui.draw.clip
 import dev.sakana.spw.prism.audio.AnalysisScope
 import dev.sakana.spw.prism.diagnostics.BuildInfo
 import dev.sakana.spw.prism.i18n.AppLanguage
@@ -75,6 +78,15 @@ private val Ink = Color(0xFF070A0F)
 private val Panel = Color(0xFF0D121A)
 private val Line = Color(0xFF1D2835)
 private val Muted = Color(0xFF7D8A9A)
+
+// Surfaces, borders and text weights in one place so the three panels agree.
+private val Surface = Color(0xFF101823)
+private val SurfaceHigh = Color(0xFF16202C)
+private val Hairline = Color(0x14FFFFFF)
+private val HairlineStrong = Color(0x24FFFFFF)
+private val TextPrimary = Color(0xFFE8EFF7)
+private val TextSecondary = Color(0xFF9AA9BA)
+private val TextTertiary = Color(0xFF67758A)
 private val Teal = Color(0xFF4DD8C4)
 private val Blue = Color(0xFF5B8CFF)
 private val Violet = Color(0xFFA77BFF)
@@ -216,19 +228,63 @@ private fun Header(
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
         Column {
-            Text(if (viewMode == ViewMode.FIELD) "声场" else "频谱",
-                fontSize = 30.sp, fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp, color = Color(0xFFF0F5FB))
-            Text(Strings.brand + " / " + if (viewMode == ViewMode.FIELD) Strings["sub.field"] else Strings["sub.spectrum"],
-                fontSize = 9.sp, letterSpacing = 2.2.sp, color = Muted)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Accent bar: cheap way to anchor the title without a logo image.
+                Box(
+                    Modifier
+                        .width(4.dp)
+                        .height(30.dp)
+                        .background(
+                            Brush.verticalGradient(listOf(theme.accent, theme.accent.copy(alpha = 0.15f))),
+                            RoundedCornerShape(2.dp),
+                        ),
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    if (viewMode == ViewMode.FIELD) Strings["title.field"] else Strings["title.spectrum"],
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.5.sp,
+                    color = TextPrimary,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                Strings.brand + "  ·  " + if (viewMode == ViewMode.FIELD) Strings["sub.field"] else Strings["sub.spectrum"],
+                fontSize = 9.sp,
+                letterSpacing = 2.4.sp,
+                color = TextTertiary,
+            )
         }
         Spacer(Modifier.weight(1f))
-        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        // Segmented control instead of two loose chips.
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(50))
+                .background(SurfaceHigh, RoundedCornerShape(50))
+                .border(1.dp, Hairline, RoundedCornerShape(50))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
             ViewMode.entries.forEach { item ->
-                Chip(if (item.name == "FIELD") Strings["tab.field"] else Strings["tab.spectrum"], item == viewMode, theme.accent) { onViewMode(item) }
+                val selected = item == viewMode
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(if (selected) theme.accent.copy(alpha = 0.16f) else Color.Transparent)
+                        .clickable { onViewMode(item) }
+                        .padding(horizontal = 16.dp, vertical = 7.dp),
+                ) {
+                    Text(
+                        if (item.name == "FIELD") Strings["tab.field"] else Strings["tab.spectrum"],
+                        fontSize = 10.sp,
+                        letterSpacing = 0.4.sp,
+                        color = if (selected) theme.accent else TextSecondary,
+                    )
+                }
             }
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(10.dp))
         StatusDot(controller, theme)
     }
 }
@@ -237,11 +293,22 @@ private fun Header(
 private fun StatusDot(controller: SpectrumController, theme: ThemePreset) {
     val error = controller.error
     val color = if (error == null) theme.accent else Amber
-    Row(verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.background(Panel, RoundedCornerShape(50)).padding(horizontal = 13.dp, vertical = 8.dp)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(color.copy(alpha = 0.10f), RoundedCornerShape(50))
+            .border(1.dp, color.copy(alpha = 0.30f), RoundedCornerShape(50))
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+    ) {
         Box(Modifier.size(6.dp).background(color, RoundedCornerShape(50)))
         Spacer(Modifier.width(7.dp))
-        Text(error ?: Strings["live"], fontSize = 10.sp, color = if (error == null) Color(0xFFBFE9E2) else Amber)
+        Text(
+            error ?: Strings["live"],
+            fontSize = 10.sp,
+            letterSpacing = 0.6.sp,
+            color = color,
+        )
     }
 }
 
@@ -292,9 +359,9 @@ private fun SpectrumPanel(
     }
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = Panel,
-        border = BorderStroke(1.dp, Color(0x1FEAF2F8)),
+        shape = RoundedCornerShape(22.dp),
+        color = Surface,
+        border = BorderStroke(1.dp, Hairline),
     ) {
         Column(Modifier.fillMaxSize().padding(18.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -491,12 +558,12 @@ private fun SettingsRail(
     lastLogPath: String?,
 ) {
     Column(
-        Modifier.width(304.dp).fillMaxHeight().background(Panel)
-            .border(1.dp, Color(0x1FEAF2F8))
-            .verticalScroll(rememberScrollState()).padding(16.dp),
+        Modifier.width(304.dp).fillMaxHeight().background(Color(0xFF0B1119))
+            .border(1.dp, Hairline)
+            .verticalScroll(rememberScrollState()).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text(Strings["rail.control"], fontSize = 11.sp, letterSpacing = 2.sp, color = Muted)
+        Text(Strings["rail.control"], fontSize = 10.sp, letterSpacing = 2.4.sp, color = Muted)
         // Graph modes only mean something on the spectrum page; the field view hides them.
         if (showGraphModes) {
             Column {
@@ -733,14 +800,39 @@ private fun Chip(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    val shape = RoundedCornerShape(50)
     Box(
         modifier
-            .border(1.dp, if (selected) accent.copy(alpha = .75f) else Line, RoundedCornerShape(7.dp))
-            .background(if (selected) accent.copy(alpha = .12f) else Color.Transparent, RoundedCornerShape(7.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .clip(shape)
+            .background(
+                when {
+                    selected -> accent.copy(alpha = 0.16f)
+                    hovered -> SurfaceHigh
+                    else -> Color.Transparent
+                },
+                shape,
+            )
+            .border(
+                1.dp,
+                when {
+                    selected -> accent.copy(alpha = 0.55f)
+                    hovered -> HairlineStrong
+                    else -> Hairline
+                },
+                shape,
+            )
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(horizontal = 11.dp, vertical = 7.dp),
     ) {
-        Text(label, fontSize = 11.sp, color = if (selected) accent else Muted, maxLines = 1)
+        Text(
+            label,
+            fontSize = 11.sp,
+            letterSpacing = 0.2.sp,
+            color = if (selected) accent else TextSecondary,
+            maxLines = 1,
+        )
     }
 }
 
