@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.sakana.spw.prism.audio.AnalysisScope
 import dev.sakana.spw.prism.diagnostics.BuildInfo
+import dev.sakana.spw.prism.i18n.Strings
 import dev.sakana.spw.prism.diagnostics.DiagnosticsLog
 import dev.sakana.spw.prism.audio.SpectrumLayout
 import kotlinx.coroutines.Dispatchers
@@ -217,13 +218,13 @@ private fun Header(
             Text(if (viewMode == ViewMode.FIELD) "声场" else "频谱",
                 fontSize = 30.sp, fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp, color = Color(0xFFF0F5FB))
-            Text(if (viewMode == ViewMode.FIELD) "SALT PLAYER / 立体声声场" else "SALT PLAYER / 实时分析",
+            Text(if (viewMode == ViewMode.FIELD) Strings["sub.field"] else Strings["sub.spectrum"],
                 fontSize = 9.sp, letterSpacing = 2.2.sp, color = Muted)
         }
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             ViewMode.entries.forEach { item ->
-                Chip(item.label, item == viewMode, theme.accent) { onViewMode(item) }
+                Chip(if (item.name == "FIELD") Strings["tab.field"] else Strings["tab.spectrum"], item == viewMode, theme.accent) { onViewMode(item) }
             }
         }
         Spacer(Modifier.width(8.dp))
@@ -239,7 +240,7 @@ private fun StatusDot(controller: SpectrumController, theme: ThemePreset) {
         modifier = Modifier.background(Panel, RoundedCornerShape(50)).padding(horizontal = 13.dp, vertical = 8.dp)) {
         Box(Modifier.size(6.dp).background(color, RoundedCornerShape(50)))
         Spacer(Modifier.width(7.dp))
-        Text(error ?: "实时", fontSize = 10.sp, color = if (error == null) Color(0xFFBFE9E2) else Amber)
+        Text(error ?: Strings["live"], fontSize = 10.sp, color = if (error == null) Color(0xFFBFE9E2) else Amber)
     }
 }
 
@@ -296,7 +297,7 @@ private fun SpectrumPanel(
     ) {
         Column(Modifier.fillMaxSize().padding(18.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("频率响应", fontSize = 9.sp, letterSpacing = 1.8.sp, color = Muted)
+                Text(Strings["response"], fontSize = 9.sp, letterSpacing = 1.8.sp, color = Muted)
                 Spacer(Modifier.weight(1f))
                 Text("16384 点 FFT · $barCount 频段 · dBFS", fontSize = 9.sp, color = Muted)
             }
@@ -449,7 +450,7 @@ private fun SpectrumPanel(
 @Composable
 private fun Footer(controller: SpectrumController, theme: ThemePreset, metrics: RenderMetrics) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("峰值", fontSize = 9.sp, letterSpacing = 1.4.sp, color = Muted)
+        Text(Strings["rail.peaks"], fontSize = 9.sp, letterSpacing = 1.4.sp, color = Muted)
         Spacer(Modifier.width(9.dp))
         Text("${controller.peakHz} Hz", fontSize = 12.sp, color = theme.accent, fontFamily = FontFamily.Monospace)
         Spacer(Modifier.weight(1f))
@@ -494,26 +495,26 @@ private fun SettingsRail(
             .verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text("控制", fontSize = 9.sp, letterSpacing = 2.sp, color = Muted)
+        Text(Strings["rail.control"], fontSize = 9.sp, letterSpacing = 2.sp, color = Muted)
         // Graph modes only mean something on the spectrum page; the field view hides them.
         if (showGraphModes) {
             Column {
-                Text("显示", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Text(Strings["rail.display"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     GraphMode.entries.forEach { item ->
-                        Chip(item.label, item == mode, theme.accent) { onMode(item) }
+                        Chip(Strings["graph." + item.name], item == mode, theme.accent) { onMode(item) }
                     }
                 }
             }
         }
         if (showGraphModes && mode == GraphMode.WATERFALL) {
             Column {
-                Text("声谱图视角", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Text(Strings["rail.view"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SpectrogramView.entries.take(2).forEach { item ->
-                        Chip(item.label, SpectrumSettings.spectrogramView == item, theme.accent) {
+                        Chip(Strings["view." + item.name], SpectrumSettings.spectrogramView == item, theme.accent) {
                             SpectrumSettings.chooseSpectrogramView(item)
                         }
                     }
@@ -521,7 +522,7 @@ private fun SettingsRail(
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SpectrogramView.entries.drop(2).forEach { item ->
-                        Chip(item.label, SpectrumSettings.spectrogramView == item, theme.accent) {
+                        Chip(Strings["view." + item.name], SpectrumSettings.spectrogramView == item, theme.accent) {
                             SpectrumSettings.chooseSpectrogramView(item)
                         }
                     }
@@ -530,11 +531,11 @@ private fun SettingsRail(
         }
         if (showGraphModes && mode == GraphMode.WATERFALL) {
             Column {
-                Text("辉光", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Text(Strings["rail.glow"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SpectrogramGlow.entries.forEach { item ->
-                        Chip(item.label, SpectrumSettings.spectrogramGlow == item, theme.accent) {
+                        Chip(Strings["glow." + item.name], SpectrumSettings.spectrogramGlow == item, theme.accent) {
                             SpectrumSettings.chooseSpectrogramGlow(item)
                         }
                     }
@@ -542,11 +543,11 @@ private fun SettingsRail(
             }
         }
         Column {
-            Text("帧率", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.fps"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FrameMode.entries.forEach { item ->
-                    Chip(item.label, SpectrumSettings.frameMode == item, theme.accent) {
+                    Chip(if (item == FrameMode.AUTO) Strings["frame.AUTO"] else item.label, SpectrumSettings.frameMode == item, theme.accent) {
                         SpectrumSettings.chooseFrameMode(item)
                         controller.applyMode(item)
                     }
@@ -556,7 +557,7 @@ private fun SettingsRail(
         // Band count and the low-band FFT choice also only shape the spectrum page.
         if (showGraphModes) {
             Column {
-                Text("频段数", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Text(Strings["rail.bands"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(64, 96, 128, 160).forEach { n ->
@@ -569,32 +570,32 @@ private fun SettingsRail(
                 Text("16384 点 FFT · 低频 32k", fontSize = 8.sp, color = Muted)
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Chip("低频 16k", !SpectrumSettings.lowFftLarge, theme.accent) {
+                    Chip(Strings["rail.bass16"], !SpectrumSettings.lowFftLarge, theme.accent) {
                         SpectrumSettings.updateLowFftLarge(false)
                     }
-                    Chip("低频 32k", SpectrumSettings.lowFftLarge, theme.accent) {
+                    Chip(Strings["rail.bass32"], SpectrumSettings.lowFftLarge, theme.accent) {
                         SpectrumSettings.updateLowFftLarge(true)
                     }
                 }
             }
         }
         Column {
-            Text("主题", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.theme"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ThemePreset.entries.forEach { item ->
-                    Chip(item.label.take(3), SpectrumSettings.theme == item, item.accent) {
+                    Chip(Strings["theme." + item.name], SpectrumSettings.theme == item, item.accent) {
                         SpectrumSettings.chooseTheme(item)
                     }
                 }
             }
         }
         Column {
-            Text("颜色", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.color"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ColorMode.entries.forEach { item ->
-                    Chip(item.label, SpectrumSettings.colorMode == item, theme.accent) {
+                    Chip(Strings["color." + item.name], SpectrumSettings.colorMode == item, theme.accent) {
                         SpectrumSettings.chooseColorMode(item)
                     }
                 }
@@ -619,50 +620,50 @@ private fun SettingsRail(
             }
         }
         Column {
-            Text("视觉效果", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.effects"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Chip("峰值 ${if (SpectrumSettings.showPeaks) "ON" else "OFF"}",
+                Chip(Strings.toggle("rail.peaks", SpectrumSettings.showPeaks),
                     SpectrumSettings.showPeaks, theme.accent) {
                     SpectrumSettings.updatePeaks(!SpectrumSettings.showPeaks)
                 }
-                Chip("动画 ${if (SpectrumSettings.animations) "ON" else "OFF"}",
+                Chip(Strings.toggle("rail.anim", SpectrumSettings.animations),
                     SpectrumSettings.animations, theme.accent) {
                     SpectrumSettings.updateAnimations(!SpectrumSettings.animations)
                 }
             }
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Chip("峰值自适应 ${if (SpectrumSettings.polarAdaptivePeak) "ON" else "OFF"}",
+                Chip(Strings.toggle("rail.adaptive", SpectrumSettings.polarAdaptivePeak),
                     SpectrumSettings.polarAdaptivePeak, theme.accent) {
                     SpectrumSettings.updateAdaptivePolarPeak(!SpectrumSettings.polarAdaptivePeak)
                 }
             }
         }
         Column {
-            Text("性能", fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.perf"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             Chip(
-                "非焦点时降低帧数 ${if (SpectrumSettings.lowFpsOnUnfocus) "ON" else "OFF"}",
+                Strings.toggle("rail.throttle", SpectrumSettings.lowFpsOnUnfocus),
                 SpectrumSettings.lowFpsOnUnfocus, theme.accent,
             ) {
                 SpectrumSettings.updateLowFpsOnUnfocus(!SpectrumSettings.lowFpsOnUnfocus)
             }
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Chip("生成日志", false, theme.accent) { onGenerateLog() }
+                Chip(Strings["rail.log"], false, theme.accent) { onGenerateLog() }
             }
             if (lastLogPath != null) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "已生成：$lastLogPath",
+                    "${Strings["log.saved"]}：$lastLogPath",
                     fontSize = 7.sp,
                     color = Muted,
                     lineHeight = 9.sp,
                 )
             }
         }
-        Chip("恢复默认", false, theme.accent) {
+        Chip(Strings["rail.reset"], false, theme.accent) {
             SpectrumSettings.reset()
             controller.applyMode(SpectrumSettings.frameMode)
         }

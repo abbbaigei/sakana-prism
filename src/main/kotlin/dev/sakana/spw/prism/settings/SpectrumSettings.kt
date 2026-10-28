@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import com.xuncorp.spw.workshop.api.config.ConfigHelper
+import dev.sakana.spw.prism.i18n.AppLanguage
+import dev.sakana.spw.prism.i18n.Strings
 import dev.sakana.spw.prism.preview.FrameMode
 
 enum class ColorMode(val label: String) {
@@ -69,6 +71,9 @@ object SpectrumSettings {
     var lowFpsOnUnfocus by mutableStateOf(true)
         private set
     /** Scale the polar cloud by a sliding peak so quiet masters still reach the outer ring. */
+    /** UI language: SYSTEM follows the Windows language, otherwise an explicit override. */
+    var language by mutableStateOf(AppLanguage.SYSTEM)
+        private set
     var polarAdaptivePeak by mutableStateOf(false)
         private set
     var peakHoldMs by mutableIntStateOf(1000)
@@ -107,6 +112,7 @@ object SpectrumSettings {
         }.getOrDefault(SpectrogramGlow.MEDIUM)
         lowFpsOnUnfocus = config.get("lowFpsOnUnfocus", true) ?: true
         polarAdaptivePeak = config.get("polarAdaptivePeak", false) ?: false
+        language = AppLanguage.fromCode(config.get("language", AppLanguage.SYSTEM.code) ?: AppLanguage.SYSTEM.code)
         peakHoldMs = (config.get("peakHoldMs", 1000) ?: 1000).coerceIn(200, 4000)
         peakDecayDbPerSec = (config.get("peakDecayDbPerSec", 21) ?: 21).coerceIn(6, 60)
         runCatching {
@@ -205,6 +211,12 @@ object SpectrumSettings {
         persist("lowFftLarge", value)
     }
 
+    fun chooseLanguage(value: AppLanguage) {
+        language = value
+        persist("language", value.code)
+        Strings.apply(value)
+    }
+
     fun updateAdaptivePolarPeak(value: Boolean) {
         polarAdaptivePeak = value
         persist("polarAdaptivePeak", value)
@@ -244,6 +256,7 @@ object SpectrumSettings {
         lowFftLarge = true
         mainFft8192 = false
         polarAdaptivePeak = false
+        language = AppLanguage.SYSTEM
         peakHoldMs = 1000
         peakDecayDbPerSec = 21
         helper?.let {
@@ -265,6 +278,7 @@ object SpectrumSettings {
             it.set("lowFftLarge", lowFftLarge)
             it.set("mainFft8192", mainFft8192)
             it.set("polarAdaptivePeak", polarAdaptivePeak)
+            it.set("language", language.code)
             it.set("spectrogramGlow", spectrogramGlow.name)
             it.set("lowFpsOnUnfocus", lowFpsOnUnfocus)
             it.set("peakHoldMs", peakHoldMs)

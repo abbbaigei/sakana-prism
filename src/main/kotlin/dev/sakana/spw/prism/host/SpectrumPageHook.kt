@@ -35,6 +35,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionOnScreen
 import java.awt.Rectangle
 import androidx.compose.ui.zIndex
+import dev.sakana.spw.prism.i18n.Strings
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xuncorp.spw.workshop.api.hook.ComposableHook
@@ -132,7 +133,7 @@ private fun SpectrumPageView() {
         // Always-on-screen escape hatch: the page header can be clipped by
         // narrow host widths, so this button must not participate in its Row.
         Text(
-            "关闭",
+            Strings["btn.close"],
             modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).zIndex(20f)
                 .border(1.dp, Color(0xFF3B4A5C), RoundedCornerShape(50))
                 .background(Color(0xE60D121A), RoundedCornerShape(50))
@@ -148,7 +149,7 @@ private fun SpectrumPageView() {
 private fun MissingTrack() {
     Box(Modifier.fillMaxSize()) {
         Text(
-            "关闭",
+            Strings["btn.close"],
             modifier = Modifier.align(Alignment.TopEnd).padding(20.dp).clickable { SpectrumHostState.close() },
             color = Color(0xFF7D8A9A),
             fontSize = 10.sp,

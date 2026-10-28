@@ -8,6 +8,7 @@ import com.xuncorp.spw.workshop.api.PluginPermission
 import com.xuncorp.spw.workshop.api.SpwPlugin
 import com.xuncorp.spw.workshop.api.WorkshopApi
 import dev.sakana.spw.prism.host.HostUiBridge
+import dev.sakana.spw.prism.i18n.Strings
 import dev.sakana.spw.prism.host.HostUiIntegration
 import dev.sakana.spw.prism.host.HostUiRuntime
 import dev.sakana.spw.prism.host.SpectrumHostState
@@ -28,6 +29,9 @@ class MainPlugin(pluginContext: PluginContext) : SpwPlugin(pluginContext) {
         SpectrumPlayback.refreshMedia()
         runCatching { SpectrumSettings.attach(WorkshopApi.manager.createConfigManager().getConfig()) }
             .onFailure { println("[Sakana] settings load failed: ${it.message}") }
+        // The saved language override is only known after the config is attached; SYSTEM
+        // resolves to the Windows UI language here.
+        Strings.apply(SpectrumSettings.language)
         if (!WorkshopApi.manager.isPermissionGranted(PluginPermission.CLASS_TRANSFORM)) {
             WorkshopApi.ui.toast("Sakana Prism 页面尚未就绪", WorkshopApi.Ui.ToastType.Warning)
             return
