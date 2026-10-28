@@ -44,6 +44,10 @@ import androidx.compose.ui.unit.sp
 import dev.sakana.spw.prism.preview.SpectrumController
 import dev.sakana.spw.prism.i18n.Strings
 import dev.sakana.spw.prism.settings.SpectrumSettings
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import org.jetbrains.skia.Paint
+import org.jetbrains.skia.PaintStrokeCap
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -99,7 +103,7 @@ fun SoundFieldPanel(
     onExpand: () -> Unit = {},
 ) {
     var mode by remember { mutableStateOf(SoundFieldMode.POLAR_SAMPLE) }
-    var density by remember { mutableStateOf(768) }
+    var density by remember { mutableStateOf(384) }
     var trail by remember { mutableStateOf(3) }
     var trailVersion by remember { mutableIntStateOf(0) }
     var renderTick by remember { mutableIntStateOf(0) }
@@ -395,8 +399,11 @@ fun SoundFieldPanel(
                             for (age in maxAge downTo 0) {
                                 val snapshot = history.frame(age) ?: continue
                                 val fade = if (age == 0) 1f else (1f - age / (trail + 1f)) * 0.24f
+                                // Faded trail frames sit at ~24% alpha; drawing them at the
+                                // full density just multiplies the per-frame draw calls.
                                 drawPolarCloud(
-                                    snapshot, cx, bottom, radius, density,
+                                    snapshot, cx, bottom, radius,
+                                    if (age == 0) density else (density / 4).coerceAtLeast(48),
                                     controller.fieldOpacity * fade, leftColor, rightColor,
                                     recordStats = age == 0,
                                     divisor = radiusDivisor,
@@ -614,6 +621,51 @@ private class AdaptivePeak {
     }
 }
 
+/** Buckets used to batch the polar particles by brightness. */
+private const val POLAR_ALPHA_BUCKETS = 6
+
+/**
+ * Reusable per-channel/brightness point buffers. Batch drawing replaced the per-particle
+ * `drawCircle` loop: a 384-point cloud used to cost ~1500 draw calls a frame.
+ */
+private class PolarPointBuffer(val capacity: Int, val buckets: Int) {
+    private val data = Array(2 * buckets) { FloatArray(capacity * 2) }
+    private val fill = IntArray(2 * buckets)
+
+    fun reset() = fill.fill(0)
+
+    fun add(channel: Int, alpha: Float, x: Float, y: Float) {
+        val level = (alpha.coerceIn(0f, 1f) * buckets).toInt().coerceIn(0, buckets - 1)
+        val bucket = channel * buckets + level
+        val at = fill[bucket]
+        if (at + 1 < data[bucket].size) {
+            data[bucket][at] = x
+            data[bucket][at + 1] = y
+            fill[bucket] = at + 2
+        }
+    }
+
+    /** Calls [action] with (channel, brightness level, exact-size coordinates). */
+    fun forEachBucket(action: (Int, Int, FloatArray) -> Unit) {
+        for (bucket in data.indices) {
+            val used = fill[bucket]
+            if (used == 0) continue
+            action(bucket / buckets, bucket % buckets, data[bucket].copyOf(used))
+        }
+    }
+}
+
+private var polarPointBuffer: PolarPointBuffer? = null
+
+private fun polarBuffer(capacity: Int): PolarPointBuffer {
+    val existing = polarPointBuffer
+    if (existing != null && existing.capacity >= capacity && existing.buckets == POLAR_ALPHA_BUCKETS) {
+        existing.reset()
+        return existing
+    }
+    return PolarPointBuffer(capacity, POLAR_ALPHA_BUCKETS).also { polarPointBuffer = it }
+}
+
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarCloud(
     field: FloatArray,
     cx: Float,
@@ -634,6 +686,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarCloud(
     if (pairs <= 1) return
     val count = density.coerceIn(1, 768)
     val scale = divisor.coerceAtLeast(1e-4f)
+    val buffer = polarBuffer(count)
+    val sizeSum = FloatArray(2)
     for (i in 0 until count) {
         val pair = if (count == 1) 0 else
             (i.toDouble() * (pairs - 1) / (count - 1).toDouble()).roundToInt().coerceIn(0, pairs - 1)
@@ -653,15 +707,26 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolarCloud(
         val aL = ((0.018f + abs(l) * 0.58f) * opacity).coerceIn(0f, 0.82f)
         val aR = ((0.018f + abs(r) * 0.58f) * opacity).coerceIn(0f, 0.82f)
         if (aL > 0.008f) {
-            val x = cx + cos(angle + 0.018f) * distance
-            val y = bottom - sin(angle + 0.018f) * distance
-            drawCircle(leftColor.copy(alpha = aL), (0.65f + abs(l) * 2.0f) * particleScale * 1.dp.toPx(), Offset(x, y))
+            buffer.add(0, aL, cx + cos(angle + 0.018f) * distance, bottom - sin(angle + 0.018f) * distance)
+            sizeSum[0] += 0.65f + abs(l) * 2.0f
         }
         if (aR > 0.008f) {
-            val x = cx + cos(angle - 0.018f) * distance
-            val y = bottom - sin(angle - 0.018f) * distance
-            drawCircle(rightColor.copy(alpha = aR), (0.65f + abs(r) * 2.0f) * particleScale * 1.dp.toPx(), Offset(x, y))
+            buffer.add(1, aR, cx + cos(angle - 0.018f) * distance, bottom - sin(angle - 0.018f) * distance)
+            sizeSum[1] += 0.65f + abs(r) * 2.0f
         }
+    }
+    val canvas = drawContext.canvas.nativeCanvas
+    val paint = Paint().apply {
+        isAntiAlias = true
+        strokeCap = PaintStrokeCap.ROUND
+    }
+    buffer.forEachBucket { channel, level, points ->
+        val color = if (channel == 0) leftColor else rightColor
+        val alpha = ((level + 0.5f) / POLAR_ALPHA_BUCKETS * 0.82f).coerceIn(0.02f, 0.82f)
+        paint.color = color.copy(alpha = alpha).toArgb()
+        val average = sizeSum[channel] / count.coerceAtLeast(1)
+        paint.strokeWidth = average.coerceIn(0.7f, 3.2f) * particleScale * 1.dp.toPx()
+        canvas.drawPoints(points, paint)
     }
 }
 

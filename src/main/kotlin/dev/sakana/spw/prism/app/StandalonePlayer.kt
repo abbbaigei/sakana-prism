@@ -101,6 +101,20 @@ class StandalonePlayer {
         if (handle != 0) api.BASS_ChannelSetAttribute(handle, BassFlags.ATTRIB_VOL, volume)
     }
 
+    /**
+     * Exact playback position, read straight from BASS. The analyser asks for this once per
+     * frame, so returning the cached UI value (updated ~8 times a second) would make the
+     * analysis window jump and the visuals stutter.
+     */
+    fun currentPositionMs(): Long {
+        val api = bass ?: return positionMs
+        if (handle == 0) return positionMs
+        return runCatching {
+            (api.BASS_ChannelBytes2Seconds(handle, api.BASS_ChannelGetPosition(handle, BassFlags.POS_BYTE)) * 1000.0)
+                .roundToLong()
+        }.getOrDefault(positionMs)
+    }
+
     /** Called by the UI ticker; keeps the transport in sync with the stream. */
     fun poll() {
         val api = bass ?: return

@@ -95,7 +95,7 @@ fun main(args: Array<String>) = application {
     LaunchedEffect(player) {
         while (true) {
             player.poll()
-            delay(120)
+            delay(80)
         }
     }
 
@@ -148,7 +148,7 @@ fun main(args: Array<String>) = application {
                     DropHint(message) { chooseFile(window)?.let(::load) }
                 } else {
                     val controller = remember(path) {
-                        SpectrumController(path, { player.positionMs }, { player.playing })
+                        SpectrumController(path, { player.currentPositionMs() }, { player.playing })
                     }
                     SpectrumDesign(controller)
                 }

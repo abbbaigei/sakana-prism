@@ -261,22 +261,19 @@ class SpectrumController(
         displayWorker!!.start()
     }
 
+    /**
+     * Waits for [deadline] without burning a core. The previous version spun with
+     * `onSpinWait` for the last ~4 ms of every frame, which cost roughly half a core at
+     * 60 fps across the two worker threads and made the UI feel sluggish.
+     */
     private fun waitUntil(deadline: Long): Boolean {
-        try {
-            while (running.get()) {
-                val remaining = deadline - System.nanoTime()
-                if (remaining <= 0L) return true
-                if (remaining > 4_000_000L) {
-                    Thread.sleep((remaining - 3_000_000L) / 1_000_000L)
-                } else {
-                    Thread.onSpinWait()
-                }
-            }
-            return false
-        } catch (_: InterruptedException) {
-            Thread.currentThread().interrupt()
-            return false
+        while (running.get()) {
+            val remaining = deadline - System.nanoTime()
+            if (remaining <= 0L) return true
+            java.util.concurrent.locks.LockSupport.parkNanos(remaining - 1_000_000L)
+            if (Thread.interrupted()) return false
         }
+        return false
     }
 
     private fun updateHold(now: Long) {
