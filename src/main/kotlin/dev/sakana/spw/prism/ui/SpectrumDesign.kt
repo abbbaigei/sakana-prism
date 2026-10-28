@@ -491,16 +491,16 @@ private fun SettingsRail(
     lastLogPath: String?,
 ) {
     Column(
-        Modifier.width(286.dp).fillMaxHeight().background(Panel)
+        Modifier.width(304.dp).fillMaxHeight().background(Panel)
             .border(1.dp, Color(0x1FEAF2F8))
             .verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text(Strings["rail.control"], fontSize = 9.sp, letterSpacing = 2.sp, color = Muted)
+        Text(Strings["rail.control"], fontSize = 11.sp, letterSpacing = 2.sp, color = Muted)
         // Graph modes only mean something on the spectrum page; the field view hides them.
         if (showGraphModes) {
             Column {
-                Text(Strings["rail.display"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Text(Strings["rail.display"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     GraphMode.entries.forEach { item ->
@@ -511,7 +511,7 @@ private fun SettingsRail(
         }
         if (showGraphModes && mode == GraphMode.WATERFALL) {
             Column {
-                Text(Strings["rail.view"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Text(Strings["rail.view"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SpectrogramView.entries.take(2).forEach { item ->
@@ -532,7 +532,7 @@ private fun SettingsRail(
         }
         if (showGraphModes && mode == GraphMode.WATERFALL) {
             Column {
-                Text(Strings["rail.glow"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Text(Strings["rail.glow"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SpectrogramGlow.entries.forEach { item ->
@@ -544,7 +544,7 @@ private fun SettingsRail(
             }
         }
         Column {
-            Text(Strings["rail.fps"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.fps"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FrameMode.entries.forEach { item ->
@@ -558,7 +558,7 @@ private fun SettingsRail(
         // Band count and the low-band FFT choice also only shape the spectrum page.
         if (showGraphModes) {
             Column {
-                Text(Strings["rail.bands"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+                Text(Strings["rail.bands"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(64, 96, 128, 160).forEach { n ->
@@ -568,7 +568,7 @@ private fun SettingsRail(
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                Text("16384 点 FFT · 低频 32k", fontSize = 8.sp, color = Muted)
+                Text("16384 点 FFT · 低频 32k", fontSize = 9.sp, color = Muted)
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Chip(Strings["rail.bass16"], !SpectrumSettings.lowFftLarge, theme.accent) {
@@ -581,7 +581,7 @@ private fun SettingsRail(
             }
         }
         Column {
-            Text(Strings["rail.theme"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.theme"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ThemePreset.entries.forEach { item ->
@@ -592,7 +592,7 @@ private fun SettingsRail(
             }
         }
         Column {
-            Text(Strings["rail.color"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.color"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ColorMode.entries.forEach { item ->
@@ -621,7 +621,7 @@ private fun SettingsRail(
             }
         }
         Column {
-            Text(Strings["rail.effects"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.effects"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Chip(Strings.toggle("rail.peaks", SpectrumSettings.showPeaks),
@@ -642,7 +642,7 @@ private fun SettingsRail(
             }
         }
         Column {
-            Text(Strings["rail.perf"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.perf"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             Chip(
                 Strings.toggle("rail.throttle", SpectrumSettings.lowFpsOnUnfocus),
@@ -658,14 +658,14 @@ private fun SettingsRail(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "${Strings["log.saved"]}：$lastLogPath",
-                    fontSize = 7.sp,
+                    fontSize = 9.sp,
                     color = Muted,
                     lineHeight = 9.sp,
                 )
             }
         }
         Column {
-            Text(Strings["rail.language"], fontSize = 8.sp, letterSpacing = 1.2.sp, color = Muted)
+            Text(Strings["rail.language"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
             Spacer(Modifier.height(8.dp))
             // Native names only: a user who cannot read the current UI language still
             // recognises their own. Three per row with equal width, because long names
@@ -740,7 +740,7 @@ private fun Chip(
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
-        Text(label, fontSize = 9.sp, color = if (selected) accent else Muted, maxLines = 1)
+        Text(label, fontSize = 11.sp, color = if (selected) accent else Muted, maxLines = 1)
     }
 }
 

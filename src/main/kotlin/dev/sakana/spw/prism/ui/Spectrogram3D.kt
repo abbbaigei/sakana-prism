@@ -236,6 +236,10 @@ internal fun DrawScope.drawSpectrogram(
     )
     // Dark shadow keeps the numbers readable where bright ridges run underneath them.
     val axisLabel = labelStyle.copy(shadow = Shadow(Color(0xC0000000), Offset(1f, 1f), 2.5f))
+    // Gap between the sheet's right edge and the labels scales with the canvas: a fixed
+    // dp offset is cramped in a small window and lost in a maximised one.
+    val labelGap = (area.width * 0.022f).coerceIn(12.dp.toPx(), 34.dp.toPx())
+    val tickLength = labelGap * 0.55f
     val ticks = listOf(20.0, 100.0, 1000.0, 10000.0, 20000.0)
     ticks.forEachIndexed { index, frequency ->
         val fraction = SpectrumLayout.fractionForHz(frequency).toFloat()
@@ -251,7 +255,7 @@ internal fun DrawScope.drawSpectrogram(
         drawLine(
             axisColor,
             Offset(anchor.x, anchor.y),
-            Offset(anchor.x + 11.dp.toPx(), anchor.y),
+            Offset(anchor.x + tickLength, anchor.y),
             1.dp.toPx(),
         )
         // 10k and 20k are only a tenth of the depth apart, so the last one is lifted to
@@ -260,7 +264,7 @@ internal fun DrawScope.drawSpectrogram(
         drawText(
             textMeasurer = textMeasurer,
             text = label,
-            topLeft = Offset(anchor.x + 18.dp.toPx(), anchor.y - lift),
+            topLeft = Offset(anchor.x + labelGap, anchor.y - lift),
             style = axisLabel,
         )
     }
@@ -268,7 +272,7 @@ internal fun DrawScope.drawSpectrogram(
     drawText(
         textMeasurer = textMeasurer,
         text = "Hz",
-        topLeft = Offset(frontRight.x + 18.dp.toPx(), frontRight.y + 10.dp.toPx()),
+        topLeft = Offset(frontRight.x + labelGap, frontRight.y + 10.dp.toPx()),
         style = axisLabel,
     )
     // The sheet runs from the newest frame back to `span` seconds, so its middle is half
