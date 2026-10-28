@@ -31,7 +31,10 @@ compose.desktop {
     application {
         mainClass = "dev.sakana.spw.prism.app.StandaloneAppKt"
         nativeDistributions {
-            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.AppImage)
+            targetFormats(
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.AppImage,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
+            )
             packageName = "SakanaPrism"
             packageVersion = project.version.toString()
             description = "Sakana Prism - spectrum and sound field visualiser"
