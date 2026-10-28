@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -127,8 +128,17 @@ fun SpectrumDesign(controller: SpectrumController) {
         }
     }
     val baseDensity = LocalDensity.current
+    val hostAppearance = remember {
+        runCatching { HostTheme.detect() }.getOrDefault(HostAppearance.DARK)
+    }
+    val hostTokens = remember(hostAppearance, SpectrumSettings.theme) {
+        // 主题仍是手动覆盖项；默认跟随宿主时用宿主强调色。
+        val override = if (SpectrumSettings.theme == ThemePreset.AURORA) null else SpectrumSettings.theme.accent
+        HostTheme.tokens(hostAppearance, override)
+    }
     CompositionLocalProvider(
-        LocalDensity provides Density(baseDensity.density, baseDensity.fontScale * 1.2f)
+        LocalDensity provides Density(baseDensity.density, baseDensity.fontScale * 1.2f),
+        LocalHostTokens provides hostTokens,
     ) {
         MaterialTheme(colorScheme = Dark) {
         var viewMode by remember { mutableStateOf(ViewMode.SPECTRUM) }
@@ -181,7 +191,7 @@ fun SpectrumDesign(controller: SpectrumController) {
                 onExpand = { fieldExpanded = false },
             )
         } else {
-            Row(Modifier.fillMaxSize().background(Panel)) {
+            Row(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1f).fillMaxHeight().padding(22.dp)) {
                     Header(controller, theme, viewMode) { viewMode = it }
                     Spacer(Modifier.height(14.dp))
@@ -557,211 +567,203 @@ private fun SettingsRail(
     onGenerateLog: () -> Unit,
     lastLogPath: String?,
 ) {
+    val tokens = LocalHostTokens.current
     Column(
-        Modifier.width(304.dp).fillMaxHeight().background(Color(0xFF0B1119))
-            .border(1.dp, Hairline)
-            .verticalScroll(rememberScrollState()).padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        Modifier.width(320.dp).fillMaxHeight()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 8.dp),
     ) {
-        Text(Strings["rail.control"], fontSize = 10.sp, letterSpacing = 2.4.sp, color = Muted)
-        // Graph modes only mean something on the spectrum page; the field view hides them.
+        Text(Strings["rail.control"], style = Type.section, color = tokens.onSurface)
+        Spacer(Modifier.height(4.dp))
+
         if (showGraphModes) {
-            Column {
-                Text(Strings["rail.display"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    GraphMode.entries.forEach { item ->
-                        Chip(Strings["graph." + item.name], item == mode, theme.accent) { onMode(item) }
-                    }
+            SectionHeader(Strings["rail.display"])
+            SettingCard {
+                ControlRow {
+                    SegmentedControl(
+                        options = GraphMode.entries,
+                        selected = mode,
+                        label = { Strings["graph." + it.name] },
+                        onSelect = onMode,
+                    )
                 }
             }
         }
+
         if (showGraphModes && mode == GraphMode.WATERFALL) {
-            Column {
-                Text(Strings["rail.view"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SpectrogramView.entries.take(2).forEach { item ->
-                        Chip(Strings["view." + item.name], SpectrumSettings.spectrogramView == item, theme.accent) {
-                            SpectrumSettings.chooseSpectrogramView(item)
-                        }
-                    }
+            SectionHeader(Strings["rail.view"])
+            SettingCard {
+                ControlRow {
+                    SegmentedControl(
+                        options = SpectrogramView.entries.take(2),
+                        selected = SpectrumSettings.spectrogramView,
+                        label = { Strings["view." + it.name] },
+                        onSelect = { SpectrumSettings.chooseSpectrogramView(it) },
+                    )
                 }
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SpectrogramView.entries.drop(2).forEach { item ->
-                        Chip(Strings["view." + item.name], SpectrumSettings.spectrogramView == item, theme.accent) {
-                            SpectrumSettings.chooseSpectrogramView(item)
-                        }
-                    }
+                ControlRow {
+                    SegmentedControl(
+                        options = SpectrogramView.entries.drop(2),
+                        selected = SpectrumSettings.spectrogramView,
+                        label = { Strings["view." + it.name] },
+                        onSelect = { SpectrumSettings.chooseSpectrogramView(it) },
+                    )
+                }
+            }
+            SectionHeader(Strings["rail.glow"])
+            SettingCard {
+                ControlRow {
+                    SegmentedControl(
+                        options = SpectrogramGlow.entries,
+                        selected = SpectrumSettings.spectrogramGlow,
+                        label = { Strings["glow." + it.name] },
+                        onSelect = { SpectrumSettings.chooseSpectrogramGlow(it) },
+                    )
                 }
             }
         }
-        if (showGraphModes && mode == GraphMode.WATERFALL) {
-            Column {
-                Text(Strings["rail.glow"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SpectrogramGlow.entries.forEach { item ->
-                        Chip(Strings["glow." + item.name], SpectrumSettings.spectrogramGlow == item, theme.accent) {
-                            SpectrumSettings.chooseSpectrogramGlow(item)
-                        }
-                    }
-                }
-            }
-        }
-        Column {
-            Text(Strings["rail.fps"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FrameMode.entries.forEach { item ->
-                    Chip(if (item == FrameMode.AUTO) Strings["frame.AUTO"] else item.label, SpectrumSettings.frameMode == item, theme.accent) {
-                        SpectrumSettings.chooseFrameMode(item)
-                        controller.applyMode(item)
-                    }
-                }
-            }
-        }
-        // Band count and the low-band FFT choice also only shape the spectrum page.
-        if (showGraphModes) {
-            Column {
-                Text(Strings["rail.bands"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(64, 96, 128, 160).forEach { n ->
-                        Chip(n.toString(), SpectrumSettings.barCount == n, theme.accent) {
-                            SpectrumSettings.chooseBarCount(n)
-                        }
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                Text("16384 点 FFT · 低频 32k", fontSize = 9.sp, color = Muted)
-                Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Chip(Strings["rail.bass16"], !SpectrumSettings.lowFftLarge, theme.accent) {
-                        SpectrumSettings.updateLowFftLarge(false)
-                    }
-                    Chip(Strings["rail.bass32"], SpectrumSettings.lowFftLarge, theme.accent) {
-                        SpectrumSettings.updateLowFftLarge(true)
-                    }
-                }
-            }
-        }
-        Column {
-            Text(Strings["rail.theme"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ThemePreset.entries.forEach { item ->
-                    Chip(Strings["theme." + item.name], SpectrumSettings.theme == item, item.accent) {
-                        SpectrumSettings.chooseTheme(item)
-                    }
-                }
-            }
-        }
-        Column {
-            Text(Strings["rail.color"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ColorMode.entries.forEach { item ->
-                    Chip(Strings["color." + item.name], SpectrumSettings.colorMode == item, theme.accent) {
-                        SpectrumSettings.chooseColorMode(item)
-                    }
-                }
-            }
-            if (SpectrumSettings.colorMode == ColorMode.CUSTOM) {
-                Spacer(Modifier.height(8.dp))
-                ColorField(Strings["color.spectrumA"], SpectrumSettings.customSpectrumA, theme.accent) {
-                    SpectrumSettings.updateCustomSpectrumA(it)
-                }
-                Spacer(Modifier.height(5.dp))
-                ColorField(Strings["color.spectrumB"], SpectrumSettings.customSpectrumB, theme.accent) {
-                    SpectrumSettings.updateCustomSpectrumB(it)
-                }
-                Spacer(Modifier.height(5.dp))
-                ColorField(Strings["color.fieldL"], SpectrumSettings.customLeft, theme.accent) {
-                    SpectrumSettings.updateCustomLeft(it)
-                }
-                Spacer(Modifier.height(5.dp))
-                ColorField(Strings["color.fieldR"], SpectrumSettings.customRight, theme.accent) {
-                    SpectrumSettings.updateCustomRight(it)
-                }
-            }
-        }
-        Column {
-            Text(Strings["rail.effects"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Chip(Strings.toggle("rail.peaks", SpectrumSettings.showPeaks),
-                    SpectrumSettings.showPeaks, theme.accent) {
-                    SpectrumSettings.updatePeaks(!SpectrumSettings.showPeaks)
-                }
-                Chip(Strings.toggle("rail.anim", SpectrumSettings.animations),
-                    SpectrumSettings.animations, theme.accent) {
-                    SpectrumSettings.updateAnimations(!SpectrumSettings.animations)
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Chip(Strings.toggle("rail.adaptive", SpectrumSettings.polarAdaptivePeak),
-                    SpectrumSettings.polarAdaptivePeak, theme.accent) {
-                    SpectrumSettings.updateAdaptivePolarPeak(!SpectrumSettings.polarAdaptivePeak)
-                }
-            }
-        }
-        Column {
-            Text(Strings["rail.perf"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
-            Spacer(Modifier.height(8.dp))
-            Chip(
-                Strings.toggle("rail.throttle", SpectrumSettings.lowFpsOnUnfocus),
-                SpectrumSettings.lowFpsOnUnfocus, theme.accent,
-            ) {
-                SpectrumSettings.updateLowFpsOnUnfocus(!SpectrumSettings.lowFpsOnUnfocus)
-            }
-            Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Chip(Strings["rail.log"], false, theme.accent) { onGenerateLog() }
-            }
-            if (lastLogPath != null) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "${Strings["log.saved"]}：$lastLogPath",
-                    fontSize = 9.sp,
-                    color = Muted,
-                    lineHeight = 9.sp,
+
+        SectionHeader(Strings["rail.fps"])
+        SettingCard {
+            ControlRow {
+                SegmentedControl(
+                    options = FrameMode.entries,
+                    selected = SpectrumSettings.frameMode,
+                    label = { if (it == FrameMode.AUTO) Strings["frame.AUTO"] else it.label },
+                    onSelect = {
+                        SpectrumSettings.chooseFrameMode(it)
+                        controller.applyMode(it)
+                    },
                 )
             }
         }
-        Column {
-            Text(Strings["rail.language"], fontSize = 10.sp, letterSpacing = 1.2.sp, color = Muted)
-            Spacer(Modifier.height(8.dp))
-            // Native names only: a user who cannot read the current UI language still
-            // recognises their own. Three per row with equal width, because long names
-            // overflow a content-sized chip inside the 254dp rail.
+
+        if (showGraphModes) {
+            SectionHeader(Strings["rail.bands"])
+            SettingCard {
+                ControlRow {
+                    SegmentedControl(
+                        options = listOf(64, 96, 128, 160),
+                        selected = SpectrumSettings.barCount,
+                        label = { it.toString() },
+                        onSelect = { SpectrumSettings.chooseBarCount(it) },
+                    )
+                }
+                ToggleRow(
+                    label = Strings["rail.bass32"],
+                    checked = SpectrumSettings.lowFftLarge,
+                    onCheckedChange = { SpectrumSettings.updateLowFftLarge(it) },
+                    description = "16k / 32k FFT window",
+                )
+            }
+        }
+
+        SectionHeader(Strings["rail.theme"])
+        SettingCard {
+            ControlRow {
+                SegmentedControl(
+                    options = ThemePreset.entries,
+                    selected = SpectrumSettings.theme,
+                    label = { Strings["theme." + it.name] },
+                    onSelect = { SpectrumSettings.chooseTheme(it) },
+                )
+            }
+            ControlRow {
+                SegmentedControl(
+                    options = ColorMode.entries,
+                    selected = SpectrumSettings.colorMode,
+                    label = { Strings["color." + it.name] },
+                    onSelect = { SpectrumSettings.chooseColorMode(it) },
+                )
+            }
+        }
+
+        SectionHeader(Strings["rail.effects"])
+        SettingCard {
+            ToggleRow(
+                label = Strings["rail.peaks"],
+                checked = SpectrumSettings.showPeaks,
+                onCheckedChange = { SpectrumSettings.updatePeaks(it) },
+            )
+            ToggleRow(
+                label = Strings["rail.anim"],
+                checked = SpectrumSettings.animations,
+                onCheckedChange = { SpectrumSettings.updateAnimations(it) },
+            )
+            ToggleRow(
+                label = Strings["rail.adaptive"],
+                checked = SpectrumSettings.polarAdaptivePeak,
+                onCheckedChange = { SpectrumSettings.updateAdaptivePolarPeak(it) },
+            )
+        }
+
+        SectionHeader(Strings["rail.perf"])
+        SettingCard {
+            ToggleRow(
+                label = Strings["rail.throttle"],
+                checked = SpectrumSettings.lowFpsOnUnfocus,
+                onCheckedChange = { SpectrumSettings.updateLowFpsOnUnfocus(it) },
+            )
+            ControlRow {
+                ActionButton(Strings["rail.log"], onGenerateLog, accent = true)
+            }
+            if (lastLogPath != null) {
+                Text(
+                    Strings["log.saved"] + ": " + lastLogPath,
+                    style = Type.caption,
+                    color = tokens.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+        }
+
+        SectionHeader(Strings["rail.language"])
+        SettingCard {
             AppLanguage.entries.chunked(3).forEach { row ->
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     row.forEach { item ->
-                        Chip(
-                            label = item.nativeName,
-                            selected = SpectrumSettings.language == item,
-                            accent = theme.accent,
-                            modifier = Modifier.weight(1f),
-                        ) { SpectrumSettings.chooseLanguage(item) }
+                        val selected = SpectrumSettings.language == item
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    if (selected) tokens.accent.copy(alpha = 0.16f) else Color.Transparent,
+                                    RoundedCornerShape(6.dp),
+                                )
+                                .clickable { SpectrumSettings.chooseLanguage(item) }
+                                .heightIn(min = 32.dp)
+                                .padding(horizontal = 8.dp, vertical = 7.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                item.nativeName,
+                                style = Type.caption,
+                                color = if (selected) tokens.accent else tokens.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
                     }
                     repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
-                Spacer(Modifier.height(6.dp))
             }
         }
-        Chip(Strings["rail.reset"], false, theme.accent) {
-            SpectrumSettings.reset()
-            controller.applyMode(SpectrumSettings.frameMode)
-        }
-        Text("SAKANA PRISM", fontSize = 8.sp, letterSpacing = 1.3.sp, color = Muted.copy(alpha = .7f))
+
+        Spacer(Modifier.height(20.dp))
+        ActionButton(
+            Strings["rail.reset"],
+            onClick = {
+                SpectrumSettings.reset()
+                controller.applyMode(SpectrumSettings.frameMode)
+            },
+        )
+        Spacer(Modifier.height(24.dp))
     }
 }
+
 
 @Composable
 private fun ColorField(label: String, value: String, accent: Color, onValue: (String) -> Unit) {

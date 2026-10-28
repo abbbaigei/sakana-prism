@@ -62,13 +62,14 @@ object SpectrumPageHook {
                     val original = requireNotNull(call.arguments[2])
                     val content: @Composable BoxScope.() -> Unit = {
                         val scope = this
-                        layer.renderContent(original, scope, currentComposer)
-                        // Only compose the spectrum page while it is actually open. The old
-                        // AnimatedVisibility kept the page (and therefore the analysis
-                        // threads) alive until a fade-out finished, which never happens
-                        // once the host window stops producing frames.
                         if (SpectrumHostState.visible) {
+                            // Replace instead of overlay: drawing the host page underneath
+                            // would block the mica/acrylic material, and the plugin's own
+                            // cards are translucent on purpose. Keeping the host content in
+                            // the tree while we are open only costs frames.
                             SpectrumPageView()
+                        } else {
+                            layer.renderContent(original, scope, currentComposer)
                         }
                     }
                     layer.render(modifier, decoration, content, currentComposer)
@@ -114,7 +115,7 @@ private fun SpectrumPageView() {
     }
     Box(
         Modifier.fillMaxSize()
-            .background(Color(0xFF0D121A))
+            .background(Color.Transparent)
             .onGloballyPositioned { coordinates ->
                 val topLeft = coordinates.positionOnScreen()
                 SpectrumOutsideClickGate.updateBounds(
