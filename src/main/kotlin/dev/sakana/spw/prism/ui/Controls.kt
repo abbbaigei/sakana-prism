@@ -117,6 +117,7 @@ fun SettingRow(
 fun ControlRow(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Row(
         modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         content()
@@ -215,6 +216,7 @@ fun <T> SegmentedControl(
             .border(1.dp, tokens.outline, ControlShape)
             .padding(2.dp),
     ) {
+        val segmentInteraction = remember { MutableInteractionSource() }
         if (placed) {
             Box(
                 Modifier
@@ -225,7 +227,10 @@ fun <T> SegmentedControl(
                     .background(tokens.accent.copy(alpha = 0.16f)),
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             options.forEach { option ->
                 val active = option == selected
                 Box(
@@ -238,7 +243,10 @@ fun <T> SegmentedControl(
                                 placed = true
                             }
                         }
-                        .clickable { onSelect(option) }
+                        .clickable(
+                            interactionSource = segmentInteraction,
+                            indication = null,
+                        ) { onSelect(option) }
                         .heightIn(min = 28.dp)
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center,

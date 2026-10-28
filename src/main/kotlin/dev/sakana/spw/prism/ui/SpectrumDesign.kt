@@ -256,12 +256,6 @@ private fun Header(
                     color = LocalHostTokens.current.onSurface,
                 )
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                Strings.brand + "  ·  " + if (viewMode == ViewMode.FIELD) Strings["sub.field"] else Strings["sub.spectrum"],
-                style = Type.caption,
-                color = LocalHostTokens.current.onSurfaceVariant,
-            )
         }
         Spacer(Modifier.weight(1f))
         // Same animated segmented control as the settings rail: the pill slides.
@@ -271,8 +265,10 @@ private fun Header(
             label = { if (it.name == "FIELD") Strings["tab.field"] else Strings["tab.spectrum"] },
             onSelect = onViewMode,
         )
-        Spacer(Modifier.width(10.dp))
-        StatusDot(controller, theme)
+        if (controller.error != null) {
+            Spacer(Modifier.width(10.dp))
+            StatusDot(controller, theme)
+        }
     }
 }
 
@@ -378,6 +374,7 @@ private fun SpectrumPanel(
                 }
                 val yStyle = TextStyle(fontSize = 10.sp, color = axisTextColor, fontFamily = FontFamily.Monospace)
                 for (i in 0..8) {
+                    if (mode == GraphMode.MIRROR) break
                     val y = plotH * i / 8f
                     val db = -12 * i
                     drawLine(grid.copy(alpha = 0.85f), Offset(left - 4.dp.toPx(), y), Offset(left, y), 1f)
@@ -393,6 +390,32 @@ private fun SpectrumPanel(
                     val x = xForHz(hz.toDouble(), left, plotW)
                     drawLine(grid, Offset(x, 0f), Offset(x, plotH), 1f)
                 }
+                }
+                if (mode == GraphMode.MIRROR) {
+                    // Mirror: the horizontal axis sits on the mirror line, otherwise the
+                    // symmetric plot has no readable reference for either scale.
+                    val midAxis = plotH / 2f
+                    drawLine(Line.copy(alpha = 0.9f), Offset(left, midAxis), Offset(w, midAxis), 1f)
+                    listOf(20 to "20", 100 to "100", 500 to "500", 1000 to "1k",
+                        2000 to "2k", 5000 to "5k", 10000 to "10k", 20000 to "20k").forEach { (hz, label) ->
+                        val x = xForHz(hz.toDouble(), left, plotW)
+                        drawLine(Line.copy(alpha = 0.35f), Offset(x, 0f), Offset(x, plotH), 1f)
+                        drawText(
+                            textMeasurer = textMeasurer,
+                            text = label,
+                            topLeft = Offset(
+                                (x + 3.dp.toPx()).coerceAtMost(w - 20.dp.toPx()),
+                                midAxis - 13.dp.toPx(),
+                            ),
+                            style = TextStyle(fontSize = 10.sp, color = axisTextColor),
+                        )
+                    }
+                    drawText(
+                        textMeasurer = textMeasurer,
+                        text = "0 dB",
+                        topLeft = Offset(1.dp.toPx(), midAxis - 7.dp.toPx()),
+                        style = TextStyle(fontSize = 10.sp, color = axisTextColor),
+                    )
                 }
                 val n = bars.size
                 val cellW = plotW / n
@@ -483,7 +506,7 @@ private fun SpectrumPanel(
                 metrics.recordDraw(System.nanoTime() - drawStarted)
             }
             Spacer(Modifier.height(6.dp))
-            if (mode != GraphMode.WATERFALL) {
+            if (mode != GraphMode.WATERFALL && mode != GraphMode.MIRROR) {
                 val ticks = listOf(
                     20 to "20", 30 to "30", 40 to "40", 50 to "50", 60 to "60", 80 to "80",
                     100 to "100", 200 to "200", 500 to "500", 1000 to "1k",
