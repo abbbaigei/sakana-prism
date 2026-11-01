@@ -9,24 +9,120 @@ import java.nio.file.Path
  * resources; a standalone build ships them in a `native` folder beside the executable.
  */
 internal object BassPaths {
-    private val hostResources = Path.of(
-        "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Salt Player for Windows\\app\\resources",
-    )
+
+    // PE machine types, read straight out of the DLL header. The host runs on a 64-bit JVM,
+    // so a 32-bit bass.dll (the one at the root of the official BASS zip) fails to load with
+    // Windows error 193, which surfaces as "not a valid Win32 application".
+    private const val MACHINE_X86 = 0x14C
+    private const val MACHINE_X64 = 0x8664
+    private const val MACHINE_ARM64 = 0xAA64
+
+    private val expectedMachine: Int =
+        if (System.getProperty("sun.arch.data.model") == "32") MACHINE_X86 else MACHINE_X64
+
+    /**
+     * Directories the host keeps its BASS DLLs in.
+     *
+     * The plugin runs inside the host JVM, so `ProcessHandle.current().command()` is the host
+     * launcher itself — that is the only reliable way to find the install directory when the
+     * library lives on a non-default Steam drive.
+     */
+    private fun hostResourceDirs(): List<Path> {
+        val dirs = mutableListOf<Path>()
+        val exe = ProcessHandle.current().info().command().orElse(null)
+        if (exe != null) {
+            val root = runCatching { Path.of(exe).parent }.getOrNull()
+            if (root != null) {
+                dirs.add(root.resolve("app").resolve("resources"))
+                dirs.add(root.resolve("resources"))
+                dirs.add(root)
+            }
+        }
+        steamLibraryRoots().forEach {
+            dirs.add(
+                it.resolve("steamapps").resolve("common")
+                    .resolve("Salt Player for Windows").resolve("app").resolve("resources"),
+            )
+        }
+        // Last resort for the common default install; kept for environments where neither
+        // the process handle nor the registry gives us anything.
+        dirs.add(Path.of("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Salt Player for Windows\\app\\resources"))
+        return dirs
+    }
+
+    /** Steam install locations from HKCU plus every library listed in libraryfolders.vdf. */
+    private fun steamLibraryRoots(): List<Path> = runCatching {
+        val steam = com.sun.jna.platform.win32.Advapi32Util.registryGetStringValue(
+            com.sun.jna.platform.win32.WinReg.HKEY_CURRENT_USER,
+            "Software\\Valve\\Steam",
+            "SteamPath",
+        )
+        val roots = mutableListOf(Path.of(steam))
+        val vdf = Path.of(steam, "steamapps", "libraryfolders.vdf")
+        if (Files.exists(vdf)) {
+            Regex("\"path\"\\s+\"([^\"]+)\"")
+                .findAll(Files.readString(vdf))
+                .forEach { match -> roots.add(Path.of(match.groupValues[1].replace("\\\\", "\\"))) }
+        }
+        roots
+    }.getOrDefault(emptyList())
+
+    /** Machine type from the PE header, or null when the file is not a PE image at all. */
+    private fun peMachine(path: Path): Int? = runCatching {
+        Files.newInputStream(path).use { input ->
+            val head = ByteArray(1024)
+            val read = input.read(head)
+            if (read < 0x40) return@use null
+            fun u16(offset: Int) = (head[offset].toInt() and 0xFF) or
+                ((head[offset + 1].toInt() and 0xFF) shl 8)
+            fun u32(offset: Int) =
+                u16(offset) or (u16(offset + 2) shl 16)
+            if (u16(0) != 0x5A4D) return@use null // "MZ"
+            val peOffset = u32(0x3C)
+            if (peOffset <= 0 || peOffset + 6 > read) return@use null
+            if (head[peOffset] != 'P'.code.toByte() || head[peOffset + 1] != 'E'.code.toByte()) return@use null
+            u16(peOffset + 4)
+        }
+    }.getOrNull()
+
+    private fun archName(machine: Int): String = when (machine) {
+        MACHINE_X86 -> "32 位 (x86)"
+        MACHINE_X64 -> "64 位 (x64)"
+        MACHINE_ARM64 -> "ARM64"
+        else -> "未知架构 0x%X".format(machine)
+    }
 
     fun resolve(dll: String): Path {
         val candidates = buildList {
             System.getenv("SAKANA_BASS_DIR")?.let { add(Path.of(it, dll)) }
+            addAll(hostResourceDirs().map { it.resolve(dll) })
             add(Path.of(System.getProperty("user.dir"), "native", dll))
             add(Path.of(System.getProperty("user.dir"), dll))
-            val appDir = ProcessHandle.current().info().command().orElse(null)
-            if (appDir != null) {
-                val dir = Path.of(appDir).parent
-                if (dir != null) add(dir.resolve("native").resolve(dll))
+            ProcessHandle.current().info().command().orElse(null)?.let { exe ->
+                Path.of(exe).parent?.let { dir -> add(dir.resolve("native").resolve(dll)) }
             }
-            add(hostResources.resolve(dll))
         }
-        return candidates.firstOrNull { Files.exists(it) }
-            ?: error("BASS library not found: $dll (searched ${candidates.joinToString()})")
+        val existing = candidates.filter { Files.exists(it) }
+
+        // Prefer a file with the right architecture: a stray 32-bit copy dropped next to the
+        // app must not shadow the host's own 64-bit DLL.
+        existing.firstOrNull { peMachine(it) == expectedMachine }?.let { return it }
+
+        val wrongArch = existing.firstNotNullOfOrNull { path ->
+            peMachine(path)?.takeIf { it != expectedMachine }?.let { path to it }
+        }
+        if (wrongArch != null) {
+            val (path, machine) = wrongArch
+            error(
+                "BASS DLL 位数不符：$path 是 ${archName(machine)}，宿主需要 ${archName(expectedMachine)}。" +
+                    "请删除该文件（宿主自带正确的 DLL），或改用 x64 版本。",
+            )
+        }
+        error(
+            "找不到 $dll。该文件由 Salt Player 自带，请确认是 Steam 完整安装；" +
+                "也可设置环境变量 SAKANA_BASS_DIR 指向 app\\resources。已搜索：" +
+                candidates.joinToString(),
+        )
     }
 }
 

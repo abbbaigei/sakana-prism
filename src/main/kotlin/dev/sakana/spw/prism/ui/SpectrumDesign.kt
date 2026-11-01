@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.widthIn
 import dev.sakana.spw.prism.audio.AnalysisScope
 import dev.sakana.spw.prism.diagnostics.BuildInfo
 import dev.sakana.spw.prism.i18n.AppLanguage
@@ -292,6 +294,10 @@ private fun StatusDot(controller: SpectrumController, theme: ThemePreset) {
             fontSize = 10.sp,
             letterSpacing = 0.6.sp,
             color = color,
+            // Library errors carry a search path; keep them readable but bounded.
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 360.dp),
         )
     }
 }
