@@ -11,9 +11,6 @@ internal object AnalysisScope {
     @Volatile var fieldVisible: Boolean = true
     /** Spectrum view on screen: the 16384-point FFT and its band mapping are needed. */
     @Volatile var spectrumVisible: Boolean = true
-
-    /** False on pages that draw no visualiser (the DAC page), so nothing is computed. */
-    @Volatile var enabled: Boolean = true
 }
 
 internal data class SpectrumFrame(

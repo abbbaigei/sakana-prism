@@ -108,7 +108,6 @@ private val Dark = darkColorScheme(
 private enum class ViewMode(val label: String) {
     SPECTRUM("频谱"),
     FIELD("声场"),
-    DAC("设备"),
 }
 
 @Composable
@@ -153,8 +152,6 @@ fun SpectrumDesign(controller: SpectrumController) {
         LaunchedEffect(viewMode, fieldExpanded) {
             AnalysisScope.fieldVisible = viewMode == ViewMode.FIELD || fieldExpanded
             AnalysisScope.spectrumVisible = viewMode == ViewMode.SPECTRUM
-            // The DAC page draws no visualiser, so it must not keep the analysis workers busy.
-            AnalysisScope.enabled = viewMode != ViewMode.DAC
         }
         val renderMetrics = remember { RenderMetrics() }
         val graphMode = SpectrumSettings.graphMode
@@ -201,9 +198,7 @@ fun SpectrumDesign(controller: SpectrumController) {
                 Column(Modifier.weight(1f).fillMaxHeight().padding(22.dp)) {
                     Header(controller, theme, viewMode) { viewMode = it }
                     Spacer(Modifier.height(14.dp))
-                    if (viewMode == ViewMode.DAC) {
-                        DacPanel(Modifier.weight(1f))
-                    } else if (viewMode == ViewMode.SPECTRUM) {
+                    if (viewMode == ViewMode.SPECTRUM) {
                         SpectrumPanel(controller, graphMode, theme, artworkPalette, barCount, showPeaks, animations, renderMetrics, Modifier.weight(1f))
                         Spacer(Modifier.height(16.dp))
                         Footer(controller, theme, renderMetrics)
@@ -218,8 +213,7 @@ fun SpectrumDesign(controller: SpectrumController) {
                         )
                     }
                 }
-                // The DAC page has no visualiser settings, so the rail would be noise there.
-                if (showSettings && viewMode != ViewMode.DAC) {
+                if (showSettings) {
                     SettingsRail(
                         controller = controller,
                         mode = graphMode,
@@ -271,7 +265,7 @@ private fun Header(
         SegmentedControl(
             options = ViewMode.entries,
             selected = viewMode,
-            label = { Strings["tab." + it.name.lowercase()] },
+            label = { if (it.name == "FIELD") Strings["tab.field"] else Strings["tab.spectrum"] },
             onSelect = onViewMode,
             emphasized = true,
         )

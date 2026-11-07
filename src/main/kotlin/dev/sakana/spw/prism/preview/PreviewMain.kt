@@ -15,7 +15,6 @@ import dev.sakana.spw.prism.audio.LoudnessTags
 import dev.sakana.spw.prism.audio.SpectrumLayout
 import dev.sakana.spw.prism.settings.SpectrumSettings
 import dev.sakana.spw.prism.ui.SpectrumDesign
-import dev.sakana.spw.prism.audio.AnalysisScope
 import java.util.concurrent.locks.LockSupport
 import java.awt.GraphicsEnvironment
 import java.nio.file.Files
@@ -148,11 +147,6 @@ class SpectrumController(
                     var last = System.nanoTime()
                     var lastAutoAdjust = last
                     while (running.get()) {
-                        if (!AnalysisScope.enabled) {
-                            // DAC page draws no visualiser, so there is nothing to analyse.
-                            java.util.concurrent.locks.LockSupport.parkNanos(50_000_000L)
-                            continue
-                        }
                         val playing = playingProvider?.invoke() ?: true
                         if (playing) {
                             val analyzeStarted = System.nanoTime()
