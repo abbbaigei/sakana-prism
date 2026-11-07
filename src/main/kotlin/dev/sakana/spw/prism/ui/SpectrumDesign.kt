@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
@@ -193,7 +194,7 @@ fun SpectrumDesign(controller: SpectrumController) {
                 onExpand = { fieldExpanded = false },
             )
         } else {
-            Row(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxSize().background(LocalHostTokens.current.scrim)) {
                 Column(Modifier.weight(1f).fillMaxHeight().padding(22.dp)) {
                     Header(controller, theme, viewMode) { viewMode = it }
                     Spacer(Modifier.height(14.dp))
@@ -691,6 +692,22 @@ private fun SettingsRail(
                     onSelect = { SpectrumSettings.chooseColorMode(it) },
                 )
             }
+            if (SpectrumSettings.colorMode == ColorMode.CUSTOM) {
+                Column(Modifier.padding(horizontal = 16.dp)) {
+                    ColorField(Strings["color.spectrumA"], SpectrumSettings.customSpectrumA, tokens.accent) {
+                        SpectrumSettings.updateCustomSpectrumA(it)
+                    }
+                    ColorField(Strings["color.spectrumB"], SpectrumSettings.customSpectrumB, tokens.accent) {
+                        SpectrumSettings.updateCustomSpectrumB(it)
+                    }
+                    ColorField(Strings["color.fieldL"], SpectrumSettings.customLeft, tokens.accent) {
+                        SpectrumSettings.updateCustomLeft(it)
+                    }
+                    ColorField(Strings["color.fieldR"], SpectrumSettings.customRight, tokens.accent) {
+                        SpectrumSettings.updateCustomRight(it)
+                    }
+                }
+            }
         }
 
         SectionHeader(Strings["rail.effects"])
@@ -782,32 +799,67 @@ private fun SettingsRail(
 
 @Composable
 private fun ColorField(label: String, value: String, accent: Color, onValue: (String) -> Unit) {
+    val tokens = LocalHostTokens.current
     var text by remember(value) { mutableStateOf(value) }
     val parsed = ArtworkPalette.parseHex(text)
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier.size(14.dp).background(parsed ?: Muted, RoundedCornerShape(3.dp))
-                .border(1.dp, Color(0xFF304052), RoundedCornerShape(3.dp)),
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(label, fontSize = 8.sp, color = LocalHostTokens.current.onSurfaceVariant, modifier = Modifier.width(42.dp))
-        BasicTextField(
-            value = text,
-            onValueChange = { raw ->
-                val next = raw.take(7)
-                text = next
-                val color = ArtworkPalette.parseHex(next)
-                if (color != null) onValue(ArtworkPalette.toHex(color))
-            },
-            singleLine = true,
-            textStyle = TextStyle(color = Color(0xFFE8EEF5), fontSize = 9.sp, fontFamily = FontFamily.Monospace),
-            modifier = Modifier.weight(1f)
-                .background(Color(0xFF111923), RoundedCornerShape(4.dp))
-                .border(1.dp, if (parsed != null) accent.copy(alpha = .45f) else Color(0xFF3A2530), RoundedCornerShape(4.dp))
-                .padding(horizontal = 7.dp, vertical = 4.dp),
-        )
+    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(18.dp)
+                    .background(parsed ?: tokens.onSurfaceVariant, RoundedCornerShape(5.dp))
+                    .border(1.dp, tokens.outline, RoundedCornerShape(5.dp)),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(label, style = Type.caption, color = tokens.onSurfaceVariant, modifier = Modifier.width(56.dp))
+            BasicTextField(
+                value = text,
+                onValueChange = { raw ->
+                    val next = raw.take(7)
+                    text = next
+                    ArtworkPalette.parseHex(next)?.let { onValue(ArtworkPalette.toHex(it)) }
+                },
+                singleLine = true,
+                textStyle = Type.numeric.copy(color = tokens.onSurface),
+                cursorBrush = SolidColor(accent),
+                modifier = Modifier.weight(1f)
+                    .background(tokens.cardHover, RoundedCornerShape(6.dp))
+                    .border(
+                        1.dp,
+                        if (parsed != null) accent.copy(alpha = 0.45f) else tokens.outlineStrong,
+                        RoundedCornerShape(6.dp),
+                    )
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        // 预设色板：点了直接生效，不用手打十六进制
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            PRESET_COLORS.forEach { hex ->
+                val color = ArtworkPalette.parseHex(hex) ?: return@forEach
+                Box(
+                    Modifier.size(18.dp)
+                        .background(color, RoundedCornerShape(5.dp))
+                        .border(
+                            1.dp,
+                            if (hex.equals(value, ignoreCase = true)) accent else tokens.outline,
+                            RoundedCornerShape(5.dp),
+                        )
+                        .clickable {
+                            text = hex
+                            onValue(hex)
+                        },
+                )
+            }
+        }
     }
 }
+
+/** 12 个常用色，覆盖主题色与常见自定义需求。 */
+private val PRESET_COLORS = listOf(
+    "#4DD8C4", "#4CC2FF", "#5B8CFF", "#A77BFF",
+    "#E06BFF", "#FF6B81", "#FF9F45", "#FFC46B",
+    "#FFE066", "#7BE38B", "#7BE0D8", "#EBEEF1",
+)
 
 @Composable
 private fun Chip(

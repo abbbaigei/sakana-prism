@@ -28,6 +28,13 @@ data class HostTokens(
     val outlineStrong: Color,
     val accent: Color,
     val onAccent: Color,
+    /**
+     * Tint laid over the host material. Full transparency is not an option: Compose keeps the
+     * previous frame where nothing repaints, so the host page bleeds through (seen with the
+     * workshop page behind the spectrum). 35% black / 70% white keeps the material visible
+     * while hiding that residue and holding text contrast.
+     */
+    val scrim: Color,
     /** Chart backdrop: deliberately opaque so the visualisers never shift with the wallpaper. */
     val chart: Color,
     val leftChannel: Color,
@@ -89,6 +96,7 @@ object HostTheme {
         outlineStrong = Color(0x8CE1E6EB),
         accent = accentOverride ?: ACCENT_DARK,
         onAccent = Color(0xFF06222E),
+        scrim = Color(0x59000000),
         chart = Color(0xE60B0F15),
         leftChannel = Color(0xFFFF6B81),
         rightChannel = Color(0xFF4DD8C4),
@@ -106,6 +114,7 @@ object HostTheme {
         outlineStrong = Color(0x668C8C8C),
         accent = accentOverride ?: ACCENT_LIGHT,
         onAccent = Color(0xFFFFFFFF),
+        scrim = Color(0xB3F2F2F2),
         chart = Color(0xF20B0F15),
         leftChannel = Color(0xFFFF6B81),
         rightChannel = Color(0xFF4DD8C4),
